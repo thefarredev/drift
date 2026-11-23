@@ -59,6 +59,8 @@ final class OverlayController {
         for overlay in overlays.shuffled() where overlay.scene.moments.buildSnowman() { return }
     }
 
+    func clearSnow() { overlays.forEach { $0.scene.clearAllSnow() } }
+
     private func rebuild() {
         overlays.forEach { $0.window.orderOut(nil) }
         overlays.removeAll()
