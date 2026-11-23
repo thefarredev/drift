@@ -161,6 +161,7 @@ final class MomentsDirector {
         }
         return nil
     }
+}
 
 // MARK: - Actors
 
