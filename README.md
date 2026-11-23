@@ -38,7 +38,10 @@ Put images in `Assets/Wallpapers/` inside this project (or choose another folder
 
 - `<condition>_<time>_NN.jpg`, e.g. `snow_night_01.jpg`. Conditions: snow, rain, storm, fog, cloudy, clear. Times: morning, day, dusk, night.
 - `<condition>_NN.jpg` for any time of day, e.g. `fog_01.jpg`.
-- `autumn_NN.jpg` for clear or cloudy days in September to November.
+- `autumn_NN.jpg`, `winter_NN.jpg`, `spring_NN.jpg`, `summer_NN.jpg` for clear or cloudy days in that season.
+- `<season>_<condition>_<time>_NN.jpg` (e.g. `winter_clear_day_01.jpg`) beats everything except holidays.
+- Calm winter days with no winter images use the `snow_<time>` images. Seasons flip south of the equator.
+- With no city set, Drift uses the city in the Mac's time zone.
 - `holiday_<name>_NN.jpg`: newyear, valentines, easter, ramadan, bajram, kurbanbajram, halloween, christmas.
 
 Missing combinations fall back to the nearest match; with no images at all, Drift paints simple placeholder skies.

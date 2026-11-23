@@ -72,6 +72,26 @@ enum TimeOfDay: String, CaseIterable {
     }
 }
 
+/// Season, from the month (flipped south of the equator). File names: winter_clear_day_01.jpg, autumn_01.jpg.
+enum Season: String, CaseIterable {
+    case winter, spring, summer, autumn
+
+    static func now(latitude: Double?, date: Date = Date()) -> Season {
+        let month = Calendar.current.component(.month, from: date)
+        var s: Season
+        switch month {
+        case 3...5: s = .spring
+        case 6...8: s = .summer
+        case 9...11: s = .autumn
+        default: s = .winter
+        }
+        if let latitude, latitude < 0 {
+            s = [.summer, .autumn, .winter, .spring][Season.allCases.firstIndex(of: s)!]
+        }
+        return s
+    }
+}
+
 /// Sunrise and sunset for a day and place (NOAA's simplified solar position formulas).
 struct SunTimes {
     let sunrise: Date
@@ -105,7 +125,8 @@ struct SunTimes {
 ///   <condition>_<time>_NN.jpg   e.g. snow_night_01.jpg
 ///   <condition>_NN.jpg          any time of day, e.g. fog_01.jpg, storm_02.png
 ///   holiday_<key>_NN.jpg        e.g. holiday_christmas_01.jpg
-///   autumn_NN.jpg               used for clear and cloudy days in autumn
+///   <season>_<condition>_<time>_NN.jpg, <season>_<condition>_NN.jpg   e.g. winter_clear_day_01.jpg
+///   <season>_NN.jpg             clear and cloudy days in that season, e.g. autumn_01.jpg
 struct WallpaperLibrary {
     private(set) var byKey: [String: [URL]] = [:]
 
@@ -125,13 +146,24 @@ struct WallpaperLibrary {
     var count: Int { byKey.values.reduce(0) { $0 + $1.count } }
 
     /// Best matching images, most specific first.
-    func candidates(condition: WallpaperCondition, time: TimeOfDay, holiday: Holiday?, autumn: Bool) -> [URL] {
+    func candidates(condition: WallpaperCondition, time: TimeOfDay, holiday: Holiday?, season: Season) -> [URL] {
         if let holiday {
             if let urls = byKey["holiday_\(holiday.rawValue)"], !urls.isEmpty { return urls }
             if let key = holiday.fallbackKey, let urls = byKey["holiday_\(key)"], !urls.isEmpty { return urls }
         }
-        if autumn, condition == .clear || condition == .cloudy, let urls = byKey["autumn"], !urls.isEmpty {
-            return urls
+        // Images made for this season and weather, e.g. winter_clear_day_01.jpg.
+        for t in time.fallbacks {
+            if let urls = byKey["\(season.rawValue)_\(condition.rawValue)_\(t.rawValue)"], !urls.isEmpty { return urls }
+        }
+        if let urls = byKey["\(season.rawValue)_\(condition.rawValue)"], !urls.isEmpty { return urls }
+        let calm = condition == .clear || condition == .cloudy
+        // A general season image, e.g. autumn_01.jpg, on calm days.
+        if calm, let urls = byKey[season.rawValue], !urls.isEmpty { return urls }
+        // Calm winter days with no winter images: a snowy landscape fits better than a summer one.
+        if calm, season == .winter {
+            for t in time.fallbacks {
+                if let urls = byKey["snow_\(t.rawValue)"], !urls.isEmpty { return urls }
+            }
         }
         for c in condition.fallbacks {
             for t in time.fallbacks {
@@ -140,7 +172,10 @@ struct WallpaperLibrary {
             if let urls = byKey[c.rawValue], !urls.isEmpty { return urls }
         }
         // Anything that isn't a holiday image.
-        return byKey.filter { !$0.key.hasPrefix("holiday_") }.flatMap(\.value)
+        let seasonal = Set(Season.allCases.map(\.rawValue))
+        return byKey.filter { key, _ in
+            !key.hasPrefix("holiday_") && !seasonal.contains(String(key.split(separator: "_")[0]))
+        }.flatMap(\.value)
     }
 }
 
@@ -281,14 +316,13 @@ final class WallpaperManager {
         saveOriginalsIfNeeded()
         let time = TimeOfDay.now(latitude: latitude, longitude: longitude)
         let holiday = Holiday.current(enabled: enabledHolidays)
-        let month = Calendar.current.component(.month, from: Date())
-        let autumn = (9...11).contains(month)
-        let key = "\(condition.rawValue)_\(time.rawValue)_\(holiday?.rawValue ?? "")"
+        let season = Season.now(latitude: latitude)
+        let key = "\(season.rawValue)_\(condition.rawValue)_\(time.rawValue)_\(holiday?.rawValue ?? "")"
         guard force || key != lastKey || current.isEmpty else { return }
         lastKey = key
 
-        let candidates = library.candidates(condition: condition, time: time, holiday: holiday, autumn: autumn)
-        currentDescription = [holiday?.title, condition.rawValue.capitalized, time.rawValue].compactMap { $0 }.joined(separator: " · ")
+        let candidates = library.candidates(condition: condition, time: time, holiday: holiday, season: season)
+        currentDescription = [holiday?.title, season.rawValue.capitalized, condition.rawValue, time.rawValue].compactMap { $0 }.joined(separator: " · ")
 
         for screen in NSScreen.screens {
             let id = screenID(screen)

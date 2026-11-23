@@ -69,7 +69,7 @@ final class AppSettings: ObservableObject {
         .appendingPathComponent("Assets/Wallpapers", isDirectory: true)
 
     private init() {
-        source = SceneSource(rawValue: d.string(forKey: "source") ?? "") ?? .snow
+        source = SceneSource(rawValue: d.string(forKey: "source") ?? "") ?? .live
         intensity = Intensity(rawValue: d.string(forKey: "intensity") ?? "") ?? .medium
         city = d.string(forKey: "city") ?? ""
         paused = d.bool(forKey: "paused")

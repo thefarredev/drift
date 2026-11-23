@@ -100,7 +100,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refreshWeather() {
         guard settings.source == .live else { return }
-        let city = settings.city.trimmingCharacters(in: .whitespaces)
+        var city = settings.city.trimmingCharacters(in: .whitespaces)
+        // No city set: use the one in the Mac's time zone, e.g. "Europe/Sarajevo" → "Sarajevo".
+        if city.isEmpty, let zoneCity = TimeZone.current.identifier.split(separator: "/").last {
+            city = zoneCity.replacingOccurrences(of: "_", with: " ")
+        }
         guard !city.isEmpty else {
             lastError = "Set your city in Settings."
             return
