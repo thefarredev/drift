@@ -128,19 +128,25 @@ final class PloughNode: SKNode {
     }
 }
 
-/// A snowman that builds itself: three balls roll in, then the hat, nose and scarf.
+/// A snowman whose parts appear as `progress` goes from 0 to 1: bottom ball, middle,
+/// head, then hat, nose and scarf. The owner decides how fast it grows.
 final class SnowmanNode: SKNode {
+    let height: CGFloat
+    private let bottom: SKShapeNode
+    private let middle: SKShapeNode
+    private let head = SKNode()
+    private let hat = SKNode()
+    private let extras: [SKNode]
+    private let hatRest: CGFloat
+
     init(height h: CGFloat) {
-        super.init()
+        height = h
         let rb = h * 0.24, rm = h * 0.17, rh = h * 0.13
-        let bottom = ball(rb, at: CGPoint(x: 0, y: rb))
-        let middle = ball(rm, at: CGPoint(x: 0, y: rb * 2 + rm * 0.8))
-        let headY = rb * 2 + rm * 1.6 + rh * 0.8
-        let head = SKNode()
-        head.position = CGPoint(x: 0, y: headY)
-        head.addChild(ball(rh, at: .zero))
-        head.addChild(shape(SKShapeNode(circleOfRadius: max(0.6, rh * 0.12)), .black, at: CGPoint(x: -rh * 0.35, y: rh * 0.25), z: 0.2))
-        head.addChild(shape(SKShapeNode(circleOfRadius: max(0.6, rh * 0.12)), .black, at: CGPoint(x: rh * 0.35, y: rh * 0.25), z: 0.2))
+        bottom = SnowmanNode.ball(rb, at: CGPoint(x: 0, y: rb))
+        middle = SnowmanNode.ball(rm, at: CGPoint(x: 0, y: rb * 2 + rm * 0.8))
+        let headBall = SnowmanNode.ball(rh, at: .zero)
+        let leftEye = shape(SKShapeNode(circleOfRadius: max(0.6, rh * 0.12)), .black, at: CGPoint(x: -rh * 0.35, y: rh * 0.25), z: 0.2)
+        let rightEye = shape(SKShapeNode(circleOfRadius: max(0.6, rh * 0.12)), .black, at: CGPoint(x: rh * 0.35, y: rh * 0.25), z: 0.2)
         let nose = SKShapeNode()
         let np = CGMutablePath()
         np.move(to: CGPoint(x: 0, y: rh * 0.12))
@@ -148,41 +154,50 @@ final class SnowmanNode: SKNode {
         np.addLine(to: CGPoint(x: 0, y: -rh * 0.2))
         np.closeSubpath()
         nose.path = np
-        head.addChild(shape(nose, .orange, z: 0.3))
-
-        let hat = SKNode()
-        hat.addChild(shape(SKShapeNode(rectOf: CGSize(width: rh * 2.4, height: rh * 0.35), cornerRadius: 0.5), .black, at: CGPoint(x: 0, y: rh * 0.85)))
-        hat.addChild(shape(SKShapeNode(rectOf: CGSize(width: rh * 1.5, height: rh * 1.3), cornerRadius: 0.5), .black, at: CGPoint(x: 0, y: rh * 1.6)))
-        hat.addChild(shape(SKShapeNode(rectOf: CGSize(width: rh * 1.5, height: rh * 0.3)), Palette.beanie, at: CGPoint(x: 0, y: rh * 1.15), z: 0.1))
-        hat.zPosition = 0.4
-        head.addChild(hat)
+        _ = shape(nose, .orange, z: 0.3)
+        let hatParts = [
+            shape(SKShapeNode(rectOf: CGSize(width: rh * 2.4, height: rh * 0.35), cornerRadius: 0.5), .black, at: CGPoint(x: 0, y: rh * 0.85)),
+            shape(SKShapeNode(rectOf: CGSize(width: rh * 1.5, height: rh * 1.3), cornerRadius: 0.5), .black, at: CGPoint(x: 0, y: rh * 1.6)),
+            shape(SKShapeNode(rectOf: CGSize(width: rh * 1.5, height: rh * 0.3)), Palette.beanie, at: CGPoint(x: 0, y: rh * 1.15), z: 0.1),
+        ]
+        hatRest = 0
 
         let scarf = shape(SKShapeNode(rectOf: CGSize(width: rm * 1.9, height: max(1.5, rh * 0.45)), cornerRadius: 1),
                           Palette.beanie, at: CGPoint(x: 0, y: rb * 2 + rm * 1.55), z: 0.5)
         let tail = shape(SKShapeNode(rectOf: CGSize(width: max(1.5, rh * 0.4), height: rm * 0.9), cornerRadius: 0.8),
                          Palette.beanie, at: CGPoint(x: rm * 0.5, y: rb * 2 + rm * 1.1), z: 0.5)
-
-        // Build-up animation.
-        for (i, part) in [bottom, middle, head].enumerated() {
-            part.setScale(0)
-            addChild(part)
-            part.run(.sequence([.wait(forDuration: 0.7 * Double(i)), .scale(to: 1, duration: 0.6)]))
-        }
-        hat.alpha = 0
-        hat.position.y += h * 0.5
-        hat.run(.sequence([.wait(forDuration: 2.2), .group([.fadeIn(withDuration: 0.3), .moveBy(x: 0, y: -h * 0.5, duration: 0.45)])]))
-        for part in [scarf, tail] {
-            part.alpha = 0
-            addChild(part)
-            part.run(.sequence([.wait(forDuration: 2.8), .fadeIn(withDuration: 0.4)]))
-        }
-        nose.alpha = 0
-        nose.run(.sequence([.wait(forDuration: 2.5), .fadeIn(withDuration: 0.3)]))
+        extras = [leftEye, rightEye, nose, scarf, tail]
+        super.init()
+        head.position = CGPoint(x: 0, y: rb * 2 + rm * 1.6 + rh * 0.8)
+        for part in [headBall, leftEye, rightEye, nose] { head.addChild(part) }
+        for part in hatParts { hat.addChild(part) }
+        hat.zPosition = 0.4
+        head.addChild(hat)
+        for part in [bottom, middle, head, scarf, tail] as [SKNode] { addChild(part) }
+        setProgress(0)
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    private func ball(_ r: CGFloat, at p: CGPoint) -> SKShapeNode {
+    /// 0...1. Each ball grows in its own stretch of the range, accessories come last.
+    func setProgress(_ p: CGFloat) {
+        func span(_ a: CGFloat, _ b: CGFloat) -> CGFloat { max(0, min(1, (p - a) / (b - a))) }
+        bottom.setScale(span(0, 0.45))
+        middle.setScale(span(0.45, 0.75))
+        head.setScale(span(0.75, 0.92))
+        let dress = span(0.92, 1)
+        for part in extras { part.alpha = dress }
+        hat.alpha = dress
+        hat.position.y = hatRest + (1 - dress) * height * 0.4
+    }
+
+    /// Where the balls are, for breaking it into clumps (local coordinates).
+    var ballCentres: [(CGPoint, CGFloat)] {
+        [(bottom.position, bottom.frame.width / 2), (middle.position, middle.frame.width / 2),
+         (head.position, head.frame.width / 2)].filter { $0.1 > 0.5 }
+    }
+
+    private static func ball(_ r: CGFloat, at p: CGPoint) -> SKShapeNode {
         let b = SKShapeNode(circleOfRadius: r)
         b.fillColor = Palette.snow
         b.strokeColor = Palette.snowEdge

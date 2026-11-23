@@ -14,8 +14,8 @@ protocol MomentActor: AnyObject {
     func step(_ dt: CGFloat) -> Bool
 }
 
-/// Runs the funny moments on one screen: snow workers, the snow plough, snowmen,
-/// and the "buried while you're away" drift with the dig-out crew.
+/// Runs the funny moments on one screen: snow workers, the snow plough, snowmen that
+/// grow by themselves, and the "buried while you're away" drifts with the dig-out crew.
 final class MomentsDirector {
     unowned let scene: WeatherOverlayScene
     var frequency: MomentFrequency = .sometimes
@@ -24,19 +24,21 @@ final class MomentsDirector {
     private var snowmen: [CGWindowID: SnowmanActor] = [:]
     private var crewTimer: CGFloat = .random(in: 25...45)
     private var ploughTimer: CGFloat = 10
-    private var snowmanTimer: CGFloat = 12
+    private var snowmanTimer: CGFloat = 20
 
-    // Buried while away. Level is 0 (nothing) to 1 (whole screen).
-    private(set) var buryLevel: CGFloat = 0
-    private var buryRate: CGFloat = 0           // level per second while rising
-    private var buryNode: SKShapeNode?
-    private var buryRedraw: CGFloat = 0
-    private var buryPhase: CGFloat = 0
+    // Buried while away: the ground pile is allowed to grow up the whole screen.
+    private(set) var burying = false
+    private var buryRate: CGFloat = 0            // pt per second of drift growth
+    private var buryNoise: [CGFloat] = []
+    private var buryNoiseTimer: CGFloat = 0
+    private var smoothTimer: CGFloat = 0
     private var digOut: DigOutActor?
     private var demoTimer: CGFloat?
+    static let normalGroundMax: CGFloat = 36
+    static let normalWindowMax: CGFloat = 22
 
     /// Snow falls harder while the screen is being buried.
-    var spawnBoost: CGFloat { buryRate > 0 ? 2.2 : 1 }
+    var spawnBoost: CGFloat { burying ? 2.5 : 1 }
 
     init(scene: WeatherOverlayScene) { self.scene = scene }
 
@@ -46,12 +48,20 @@ final class MomentsDirector {
         actors = actors.filter { $0.step(dt) }
         snowmen = snowmen.filter { _, s in !s.finished }
 
-        if frequency != .off && scene.weather == .snow && scene.settle && digOut == nil {
+        if frequency != .off && scene.weather == .snow && scene.settle && digOut == nil && !burying {
             autoCrew(dt)
             autoPlough(dt)
             autoSnowman(dt)
         }
         updateBury(dt)
+        if let t = demoTimer {
+            demoTimer = t - dt
+            if t - dt <= 0 { returnFromAway() }
+        }
+        // The pointer can knock snowmen over.
+        if scene.cursorSpeed > 20 {
+            for s in snowmen.values { s.cursorPassed(scene.cursor, velocity: scene.cursorVel) }
+        }
     }
 
     // MARK: - Things you can trigger from the menu
@@ -66,60 +76,51 @@ final class MomentsDirector {
         actors.append(PloughActor(scene: scene, pile: ground))
     }
 
+    /// From the menu: start a snowman right away and let it grow in about 15 seconds.
     @discardableResult
-    func buildSnowman(force: Bool = false) -> Bool {
-        var candidates = scene.piles.values.filter { snowmen[$0.windowID] == nil }
-        candidates.shuffle()
-        for pile in candidates {
-            if let x = snowmanSpot(on: pile, force: force) {
-                let actor = SnowmanActor(scene: scene, pile: pile, x: x)
-                snowmen[pile.windowID] = actor
-                actors.append(actor)
-                return true
+    func buildSnowman() -> Bool {
+        if startSnowman(minimumFraction: 0.3, seconds: 15) { return true }
+        // Not enough snow anywhere: heap a little up on the ground first.
+        guard snowmen[scene.groundID] == nil, let ground = scene.ground() else { return false }
+        let x = scene.screenFrame.minX + scene.screenFrame.width * .random(in: 0.2...0.8)
+        if let centre = ground.column(forX: x) {
+            for c in max(0, centre - 20)...min(ground.heights.count - 1, centre + 20) {
+                let falloff = 1 - CGFloat(abs(c - centre)) / 21
+                ground.heights[c] = max(ground.heights[c], ground.maxHeight * 0.5 * falloff)
             }
         }
-        // Nothing deep enough yet: when forced, use the ground.
-        if force, snowmen[scene.groundID] == nil, let ground = scene.ground() {
-            let x = scene.screenFrame.minX + scene.screenFrame.width * .random(in: 0.2...0.8)
-            // Heap up a little snow where it will stand.
-            if let centre = ground.column(forX: x) {
-                for c in max(0, centre - 20)...min(ground.heights.count - 1, centre + 20) {
-                    let falloff = 1 - CGFloat(abs(c - centre)) / 21
-                    ground.heights[c] = max(ground.heights[c], ground.maxHeight * 0.5 * falloff)
-                }
-            }
-            let actor = SnowmanActor(scene: scene, pile: ground, x: x)
-            snowmen[scene.groundID] = actor
-            actors.append(actor)
-            return true
-        }
-        return false
+        let actor = SnowmanActor(scene: scene, pile: ground, x: x, seconds: 15)
+        snowmen[scene.groundID] = actor
+        actors.append(actor)
+        return true
     }
 
-    /// Start burying the screen. `minutes` = how long until it is fully covered.
+    /// Start burying the screen. `minutes` = roughly how long until it is fully covered.
     func startBurying(minutes: Double) {
-        guard digOut == nil else { return }
-        buryRate = CGFloat(1 / (minutes * 60))
+        guard digOut == nil, !burying, let ground = scene.ground() else { return }
+        burying = true
+        buryRate = scene.screenFrame.height / CGFloat(minutes * 60)
+        ground.maxHeight = scene.screenFrame.height * 1.05
+        for pile in scene.piles.values where pile !== ground { pile.maxHeight = 60 }
+        buryNoise = smoothNoise(count: ground.heights.count)
     }
 
     /// You're back: stop burying and send the crew to dig you out.
     func returnFromAway() {
-        buryRate = 0
         demoTimer = nil
-        guard buryLevel > 0.01, digOut == nil else {
-            removeBury()
-            return
-        }
-        let crew = DigOutActor(scene: scene, director: self, startLevel: buryLevel)
+        guard burying else { return }
+        burying = false
+        guard digOut == nil, let ground = scene.piles[scene.groundID] else { restoreLimits(); return }
+        let crew = DigOutActor(scene: scene, director: self, ground: ground)
         digOut = crew
         actors.append(crew)
     }
 
-    /// Demo for the menu: buried in a few seconds, then dug out.
+    /// Demo for the menu: drifts pile up for about 8 seconds, then the crew digs you out.
     func demoBury() {
-        guard digOut == nil else { return }
-        buryRate = 1.0 / 6        // full-ish in about 5 seconds
-        demoTimer = 5.5
+        guard digOut == nil, !burying else { return }
+        startBurying(minutes: 0.15)
+        demoTimer = 8
     }
 
     // MARK: - Automatic moments
@@ -146,13 +147,30 @@ final class MomentsDirector {
         }
     }
 
+    /// Now and then a snowman starts forming in deep snow. It grows over a couple of
+    /// minutes, and only keeps growing while nobody clears that spot.
     private func autoSnowman(_ dt: CGFloat) {
         snowmanTimer -= dt
         guard snowmanTimer <= 0 else { return }
-        snowmanTimer = 10
-        let chance: Double = frequency == .often ? 0.5 : 0.2
+        snowmanTimer = 15
+        let chance: Double = frequency == .often ? 0.35 : 0.15
         guard snowmen.count < 3, Double.random(in: 0...1) < chance else { return }
-        buildSnowman()
+        startSnowman(minimumFraction: 0.7, seconds: frequency == .often ? 90 : 150)
+    }
+
+    @discardableResult
+    private func startSnowman(minimumFraction: CGFloat, seconds: CGFloat) -> Bool {
+        var candidates = scene.piles.values.filter { snowmen[$0.windowID] == nil }
+        candidates.shuffle()
+        for pile in candidates {
+            if let x = snowmanSpot(on: pile, fraction: minimumFraction) {
+                let actor = SnowmanActor(scene: scene, pile: pile, x: x, seconds: seconds)
+                snowmen[pile.windowID] = actor
+                actors.append(actor)
+                return true
+            }
+        }
+        return false
     }
 
     /// The window pile with the most visible snow.
@@ -170,8 +188,8 @@ final class MomentsDirector {
     }
 
     /// Centre x of a deep, visible stretch of snow (at least ~30pt wide).
-    private func snowmanSpot(on pile: Pile, force: Bool) -> CGFloat? {
-        let need = force ? pile.maxHeight * 0.35 : pile.maxHeight * 0.7
+    private func snowmanSpot(on pile: Pile, fraction: CGFloat) -> CGFloat? {
+        let need = min(pile.maxHeight, MomentsDirector.normalGroundMax) * fraction
         let run = 10
         var start: Int?
         for c in pile.heights.indices {
@@ -191,70 +209,68 @@ final class MomentsDirector {
 
     // MARK: - Buried while away
 
-    /// Global y of the top of the drift at x, or nil when nothing is buried.
-    func buryTopY(atGlobalX x: CGFloat) -> CGFloat? {
-        guard buryLevel > 0.005 else { return nil }
-        let lx = x - scene.screenFrame.minX
-        return scene.screenFrame.minY + waveY(lx)
-    }
+    private func updateBury(_ dt: CGFloat) {
+        guard burying, let ground = scene.piles[scene.groundID] else { return }
+        if buryNoise.count != ground.heights.count { buryNoise = smoothNoise(count: ground.heights.count) }
 
-    /// Local y of the drift's wavy top edge.
-    private func waveY(_ lx: CGFloat) -> CGFloat {
-        let h = scene.screenFrame.height * 1.06
-        return buryLevel * h + sin(lx / 90 + buryPhase) * 9 * buryLevel.squareRoot()
-            + sin(lx / 33 + buryPhase * 1.7) * 3
-    }
-
-    fileprivate func setBuryLevel(_ level: CGFloat) {
-        buryLevel = max(0, min(1, level))
+        // Drifts grow unevenly: some spots faster than others, and the pattern slowly shifts,
+        // so it looks like wind-blown snow building up rather than a flat wall.
+        buryNoiseTimer += dt
+        if buryNoiseTimer > 6 {
+            buryNoiseTimer = 0
+            let fresh = smoothNoise(count: ground.heights.count)
+            for i in buryNoise.indices { buryNoise[i] = buryNoise[i] * 0.6 + fresh[i] * 0.4 }
+        }
+        for c in ground.heights.indices {
+            ground.heights[c] = min(ground.maxHeight, ground.heights[c] + buryRate * dt * buryNoise[c])
+        }
+        // Let steep bits slump a little so the surface stays soft and rounded.
+        smoothTimer += dt
+        if smoothTimer > 0.15 {
+            smoothTimer = 0
+            relax(ground, strength: 0.25)
+        }
+        // Windows get deeper snow too.
+        for pile in scene.piles.values where pile !== ground {
+            for c in pile.heights.indices { pile.heights[c] = min(pile.maxHeight, pile.heights[c] + dt * 1.5 * buryNoise[c % max(1, buryNoise.count)]) }
+        }
     }
 
     fileprivate func finishDigOut() {
         digOut = nil
-        removeBury()
+        restoreLimits()
     }
 
-    private func removeBury() {
-        buryLevel = 0
-        buryNode?.removeFromParent()
-        buryNode = nil
+    private func restoreLimits() {
+        for pile in scene.piles.values {
+            let limit = pile.windowID == scene.groundID ? MomentsDirector.normalGroundMax : MomentsDirector.normalWindowMax
+            pile.maxHeight = limit
+            for c in pile.heights.indices { pile.heights[c] = min(pile.heights[c], limit) }
+        }
     }
 
-    private func updateBury(_ dt: CGFloat) {
-        if buryRate > 0 { setBuryLevel(buryLevel + buryRate * dt) }
-        if let t = demoTimer {
-            demoTimer = t - dt
-            if t - dt <= 0 { returnFromAway() }
+    /// Smooth random values around 1 (between ~0.3 and ~1.7), one per column.
+    private func smoothNoise(count: Int) -> [CGFloat] {
+        guard count > 0 else { return [] }
+        // A few random control points, eased between: gentle hills a few hundred points wide.
+        let step = 40
+        let points = (0...(count / step + 1)).map { _ in CGFloat.random(in: 0.3...1.7) }
+        return (0..<count).map { i in
+            let a = points[i / step], b = points[i / step + 1]
+            let t = CGFloat(i % step) / CGFloat(step)
+            let eased = t * t * (3 - 2 * t)
+            return a + (b - a) * eased
         }
-        guard buryLevel > 0.005 else {
-            buryNode?.removeFromParent()
-            buryNode = nil
-            return
-        }
-        if buryNode == nil {
-            let node = SKShapeNode()
-            node.fillColor = NSColor(calibratedWhite: 0.985, alpha: 1)
-            node.strokeColor = NSColor(calibratedRed: 0.8, green: 0.87, blue: 0.96, alpha: 1)
-            node.lineWidth = 1.5
-            node.zPosition = 1.5          // above window piles, below falling flakes and workers
-            scene.addChild(node)
-            buryNode = node
-        }
-        buryPhase += dt * 0.25
-        buryRedraw += dt
-        guard buryRedraw > 0.08 else { return }
-        buryRedraw = 0
-        let w = scene.screenFrame.width
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: -10, y: -10))
-        var x: CGFloat = -10
-        while x <= w + 10 {
-            path.addLine(to: CGPoint(x: x, y: waveY(x)))
-            x += 8
-        }
-        path.addLine(to: CGPoint(x: w + 10, y: -10))
-        path.closeSubpath()
-        buryNode?.path = path
+    }
+}
+
+/// Blend each column a little toward its neighbours (soft, rounded snow).
+private func relax(_ pile: Pile, strength: CGFloat) {
+    let h = pile.heights
+    guard h.count > 2 else { return }
+    for c in 1..<(h.count - 1) {
+        let avg = (h[c - 1] + h[c + 1]) / 2
+        pile.heights[c] = h[c] + (avg - h[c]) * strength
     }
 }
 
@@ -397,129 +413,199 @@ private final class PloughActor: MomentActor {
     }
 }
 
-/// A snowman that builds itself on a deep pile, and melts or tumbles when the snow goes.
+/// A snowman that slowly grows on a deep pile while nobody clears that spot.
+/// It falls apart into clumps if a worker or the plough clears under it, if the window
+/// moves, or if you swipe the pointer through it.
 final class SnowmanActor: MomentActor {
     let node: SnowmanNode
     weak var pile: Pile?
     unowned let scene: WeatherOverlayScene
     let x: CGFloat
     let columns: [Int]
+    private let growRate: CGFloat
+    private var progress: CGFloat = 0
+    private let startDepth: CGFloat
+    private var wobble: CGFloat = 0
+    private var wobblePhase: CGFloat = 0
     private(set) var finished = false
-    private var falling = false
-    private var vy: CGFloat = 0
 
-    init(scene: WeatherOverlayScene, pile: Pile, x: CGFloat) {
+    init(scene: WeatherOverlayScene, pile: Pile, x: CGFloat, seconds: CGFloat) {
         self.scene = scene
         self.pile = pile
         self.x = x
-        let height = pile.maxHeight * 1.35
+        growRate = 1 / max(1, seconds)
+        let height = min(pile.maxHeight, MomentsDirector.normalGroundMax) * 1.35
         node = SnowmanNode(height: height)
-        // The snow under the snowman gets used up to build it.
         let half = Int(height * 0.3 / Pile.columnWidth)
         let centre = pile.column(forX: x) ?? 0
         columns = Array(max(0, centre - half)...min(pile.heights.count - 1, centre + half))
-        let base = columns.map { pile.heights[$0] }.min() ?? 0
-        for c in columns { pile.heights[c] = max(base * 0.6, 1) }
+        startDepth = max(1, columns.map { pile.heights[$0] }.reduce(0, +) / CGFloat(max(1, columns.count)))
         node.zPosition = 4
-        node.position = scene.local(CGPoint(x: x, y: pile.topY + base * 0.6 - 1))
         scene.addChild(node)
+        place()
     }
 
     func step(_ dt: CGFloat) -> Bool {
-        guard !falling, let pile, scene.piles[pile.windowID] === pile else { return tumble(dt) }
-        node.isHidden = scene.isCovered(CGPoint(x: x, y: pile.topY + 1), on: pile)
-        // Melt away when the snow around it has melted or been cleared.
-        let around = columns.map { pile.heights[$0] }.reduce(0, +) / CGFloat(max(1, columns.count))
-        if around < 0.4 {
-            node.yScale -= dt * 0.25
-            node.alpha -= dt * 0.25
-            if node.alpha <= 0.05 { return done() }
+        guard !finished else { return false }
+        guard let pile, scene.piles[pile.windowID] === pile else { return breakApart(push: .zero) }
+
+        let depth = columns.map { pile.heights[$0] }.reduce(0, +) / CGFloat(max(1, columns.count))
+        // Someone cleared the snow under it: it collapses.
+        if depth < startDepth * 0.35 { return breakApart(push: .zero) }
+
+        // Grows only while it's snowing; slowly melts back otherwise.
+        if scene.weather == .snow {
+            progress = min(1, progress + growRate * dt)
+        } else {
+            progress = max(0, progress - dt / 240)
+            if progress <= 0 { return breakApart(push: .zero) }
         }
+        node.setProgress(progress)
+
+        // A gentle wobble after the pointer brushed past.
+        wobble *= max(0, 1 - dt * 3)
+        wobblePhase += dt * 9
+        node.zRotation = sin(wobblePhase) * wobble
+
+        place()
+        node.isHidden = scene.isCovered(CGPoint(x: x, y: pile.topY + 1), on: pile)
         return true
     }
 
-    private func tumble(_ dt: CGFloat) -> Bool {
-        falling = true
-        vy -= 500 * dt
-        node.position.y += vy * dt
-        node.zRotation -= dt * 3
-        node.alpha -= dt
-        if node.alpha <= 0 || node.position.y < -60 { return done() }
-        return true
+    /// Called while the pointer moves. A slow brush makes it wobble; a swipe knocks it over.
+    func cursorPassed(_ p: CGPoint, velocity: CGVector) {
+        guard !finished, !node.isHidden, progress > 0.05 else { return }
+        let base = node.position
+        let local = CGPoint(x: p.x - scene.screenFrame.minX, y: p.y - scene.screenFrame.minY)
+        let h = node.height * min(1, progress * 1.2)
+        guard abs(local.x - base.x) < node.height * 0.3, local.y > base.y - 2, local.y < base.y + h else { return }
+        let speed = hypot(velocity.dx, velocity.dy)
+        if speed > 260 {
+            _ = breakApart(push: velocity)
+        } else {
+            wobble = min(0.25, wobble + speed / 2000)
+        }
     }
 
-    private func done() -> Bool {
-        node.removeFromParent()
+    private func place() {
+        guard let pile else { return }
+        let floor = columns.map { pile.heights[$0] }.min() ?? 0
+        node.position = scene.local(CGPoint(x: x, y: pile.topY + floor * 0.75 - 1))
+    }
+
+    /// Bursts into snow clumps that fall and settle again.
+    private func breakApart(push: CGVector) -> Bool {
+        guard !finished else { return false }
         finished = true
+        let origin = CGPoint(x: x, y: node.position.y + scene.screenFrame.minY)
+        for (centre, radius) in node.ballCentres {
+            let count = max(2, Int(radius * 1.2))
+            for _ in 0..<count {
+                let p = CGPoint(x: origin.x + centre.x + .random(in: -radius...radius),
+                                y: origin.y + centre.y + .random(in: -radius...radius))
+                scene.spawn(at: p,
+                            velocity: CGVector(dx: push.dx * 0.15 + .random(in: -40...40),
+                                               dy: push.dy * 0.1 + .random(in: 10...90)),
+                            rain: false, size: .random(in: 2.2...4.2))
+            }
+        }
+        node.run(.sequence([.group([.fadeOut(withDuration: 0.15), .scale(to: 1.15, duration: 0.15)]), .removeFromParent()]))
         return false
     }
 }
 
-/// When you come back: a crew stands on the drift, shovelling, while it sinks away.
+/// When you come back: a crew digs trenches into the drifts while a plough helps,
+/// until the snow is back down to a normal layer above the Dock.
 private final class DigOutActor: MomentActor {
     unowned let scene: WeatherOverlayScene
     unowned let director: MomentsDirector
-    let startLevel: CGFloat
-    let duration: CGFloat = 5
+    weak var ground: Pile?
+    let duration: CGFloat = 7
     var elapsed: CGFloat = 0
-    var workers: [(node: WorkerNode, x: CGFloat)] = []
+    var workers: [(node: WorkerNode, x: CGFloat, dir: CGFloat)] = []
     let plough = PloughNode()
     var ploughX: CGFloat
     var throwTimer: CGFloat = 0
+    let startMax: CGFloat
+    let rest: CGFloat = 8
 
-    init(scene: WeatherOverlayScene, director: MomentsDirector, startLevel: CGFloat) {
+    init(scene: WeatherOverlayScene, director: MomentsDirector, ground: Pile) {
         self.scene = scene
         self.director = director
-        self.startLevel = startLevel
+        self.ground = ground
+        startMax = max(rest + 1, ground.heights.max() ?? rest)
         let f = scene.screenFrame
-        for fraction in [0.22, 0.5, 0.78] as [CGFloat] {
+        let count = 4
+        for i in 0..<count {
             let worker = WorkerNode()
             worker.zPosition = 5
-            worker.setScale(1.6)
-            worker.xScale = Bool.random() ? 1.6 : -1.6
+            let dir: CGFloat = Bool.random() ? 1 : -1
+            worker.setScale(1.5)
+            worker.xScale = 1.5 * dir
             worker.alpha = 0
             worker.run(.fadeIn(withDuration: 0.3))
             scene.addChild(worker)
-            workers.append((worker, f.minX + f.width * fraction))
+            let x = f.minX + f.width * (CGFloat(i) + 0.5) / CGFloat(count) + .random(in: -60...60)
+            workers.append((worker, x, dir))
         }
         ploughX = f.minX - 60
-        plough.setScale(1.6)
+        plough.setScale(1.5)
         plough.zPosition = 5
         scene.addChild(plough)
     }
 
     func step(_ dt: CGFloat) -> Bool {
+        guard let ground else { return finish() }
         elapsed += dt
-        let progress = min(1, elapsed / duration)
-        // Ease out: fast at first, gentle at the end.
-        director.setBuryLevel(startLevel * pow(1 - progress, 1.6))
+
+        // Every column sinks toward the resting layer; near a worker it sinks much faster,
+        // so trenches open around the crew and widen until everything is clear.
+        let base = (startMax - rest) / duration
+        for c in ground.heights.indices where ground.heights[c] > rest {
+            let x = ground.originX + CGFloat(c) * Pile.columnWidth
+            var near: CGFloat = 0
+            for w in workers { near = max(near, exp(-abs(w.x - x) / 70)) }
+            let rate = base * (0.6 + near * 3)
+            ground.heights[c] = max(rest, ground.heights[c] - rate * dt)
+        }
+        relax(ground, strength: 0.15)
 
         throwTimer += dt
-        let shouldThrow = throwTimer > 0.12
+        let shouldThrow = throwTimer > 0.15
         if shouldThrow { throwTimer = 0 }
-
-        for (worker, x) in workers {
-            let top = director.buryTopY(atGlobalX: x) ?? scene.screenFrame.minY
-            worker.position = scene.local(CGPoint(x: x, y: top))
-            worker.animate(dt: dt, walking: false, digging: true)
-            if shouldThrow && progress < 0.95 {
-                scene.spawn(at: CGPoint(x: x, y: top + 22),
-                            velocity: CGVector(dx: .random(in: -110...110), dy: .random(in: 120...220)),
+        for i in workers.indices {
+            // Walk slowly outwards as they dig.
+            workers[i].x += workers[i].dir * 14 * dt
+            let (node, x, dir) = workers[i]
+            let c = ground.column(forX: x)
+            let top = ground.topY + (c.map { ground.heights[$0] } ?? 0)
+            node.position = scene.local(CGPoint(x: x, y: top))
+            node.animate(dt: dt, walking: true, digging: true)
+            if shouldThrow, (c.map { ground.heights[$0] } ?? 0) > rest + 2 {
+                scene.spawn(at: CGPoint(x: x - dir * 4, y: top + 20),
+                            velocity: CGVector(dx: -dir * .random(in: 50...120), dy: .random(in: 110...200)),
                             rain: false, size: .random(in: 2.5...4.5), settles: false)
             }
         }
 
-        ploughX += 220 * dt
-        let ploughTop = director.buryTopY(atGlobalX: ploughX) ?? scene.screenFrame.minY
-        plough.position = scene.local(CGPoint(x: ploughX, y: ploughTop))
-        plough.animate(dt: dt, speed: 220)
-
-        if progress >= 1 {
-            for (worker, _) in workers { worker.run(.sequence([.fadeOut(withDuration: 0.5), .removeFromParent()])) }
-            plough.run(.sequence([.fadeOut(withDuration: 0.5), .removeFromParent()]))
-            director.finishDigOut()
-            return false
+        // The plough follows along the resting layer once the drifts are mostly gone.
+        if elapsed > duration * 0.45 {
+            ploughX += 200 * dt
+            let c = ground.column(forX: ploughX)
+            plough.position = scene.local(CGPoint(x: ploughX, y: ground.topY + (c.map { ground.heights[$0] } ?? rest)))
+            plough.animate(dt: dt, speed: 200)
         }
+
+        let done = !ground.heights.contains { $0 > rest + 0.5 }
+        if done && elapsed > 2 { return finish() }
+        if elapsed > duration * 2 { return finish() }
         return true
+    }
+
+    private func finish() -> Bool {
+        for w in workers { w.node.run(.sequence([.fadeOut(withDuration: 0.5), .removeFromParent()])) }
+        plough.run(.sequence([.fadeOut(withDuration: 0.5), .removeFromParent()]))
+        director.finishDigOut()
+        return false
     }
 }

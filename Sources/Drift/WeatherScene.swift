@@ -20,7 +20,7 @@ final class Pile {
     var originX: CGFloat          // global x of column 0
     var topY: CGFloat             // global y of the surface the snow sits on
     var heights: [CGFloat]
-    let maxHeight: CGFloat
+    var maxHeight: CGFloat         // raised while the screen is being buried
     let node = SKShapeNode()
 
     init(windowID: CGWindowID, originX: CGFloat, width: CGFloat, topY: CGFloat, maxHeight: CGFloat) {
@@ -149,6 +149,67 @@ final class WeatherOverlayScene: SKScene {
         piles.removeAll()
     }
 
+    // MARK: - Mouse
+
+    /// Cursor position (global) and smoothed velocity in pt/s. The overlay never takes clicks;
+    /// it just reads where the pointer is, which needs no permission.
+    private(set) var cursor = CGPoint(x: -1000, y: -1000)
+    private(set) var cursorVel = CGVector.zero
+    var cursorSpeed: CGFloat { hypot(cursorVel.dx, cursorVel.dy) }
+    private var cursorPuffBudget: CGFloat = 0
+
+    private func updateCursor(dt: CGFloat) {
+        let now = NSEvent.mouseLocation
+        guard screenFrame.insetBy(dx: -30, dy: -30).contains(now) else {
+            cursor = CGPoint(x: -1000, y: -1000)
+            cursorVel = .zero
+            return
+        }
+        if cursor.x > -999, dt > 0 {
+            let raw = CGVector(dx: (now.x - cursor.x) / dt, dy: (now.y - cursor.y) / dt)
+            cursorVel = CGVector(dx: cursorVel.dx * 0.6 + raw.dx * 0.4, dy: cursorVel.dy * 0.6 + raw.dy * 0.4)
+        }
+        cursor = now
+        if settle { pushSnow(dt: dt) }
+    }
+
+    /// Moving the pointer through settled snow pushes it aside softly, with a little puff.
+    private func pushSnow(dt: CGFloat) {
+        let speed = cursorSpeed
+        guard speed > 25 else { return }
+        cursorPuffBudget = min(6, cursorPuffBudget + dt * 40)
+        let radius: CGFloat = 12
+        let dir: CGFloat = cursorVel.dx >= 0 ? 1 : -1
+        for pile in piles.values {
+            guard cursor.x > pile.originX - radius, cursor.x < pile.originX + pile.width + radius,
+                  let c = pile.column(forX: cursor.x) else { continue }
+            let surface = pile.surfaceY(atColumn: c)
+            guard cursor.y > pile.topY - 3, cursor.y < surface + 4, pile.heights[c] > 0.3 else { continue }
+            if isCovered(CGPoint(x: cursor.x, y: pile.topY + 1), on: pile) { continue }
+
+            let reach = Int(radius / Pile.columnWidth)
+            let strength = min(0.5, speed / 1600)
+            var moved: CGFloat = 0
+            for i in max(0, c - reach)...min(pile.heights.count - 1, c + reach) {
+                let f = 1 - CGFloat(abs(i - c)) / CGFloat(reach + 1)
+                let take = pile.heights[i] * strength * f
+                pile.heights[i] -= take
+                moved += take
+            }
+            // Half slides ahead of the pointer, half puffs up into the air.
+            let ahead = c + Int(dir) * (reach + 2)
+            if pile.heights.indices.contains(ahead) {
+                pile.add(atColumn: ahead, amount: moved * 0.5)
+            }
+            if moved > 0.8, cursorPuffBudget >= 1 {
+                cursorPuffBudget -= 1
+                spawn(at: CGPoint(x: cursor.x, y: surface),
+                      velocity: CGVector(dx: cursorVel.dx * 0.25 + .random(in: -15...15), dy: .random(in: 30...70)),
+                      rain: false, size: .random(in: 1.6...3))
+            }
+        }
+    }
+
     // MARK: - Frame loop
 
     override func update(_ currentTime: TimeInterval) {
@@ -160,6 +221,7 @@ final class WeatherOverlayScene: SKScene {
         spawnNew(dt: dt)
         step(dt: dt)
         melt(dt: dt)
+        updateCursor(dt: dt)
         moments.update(dt: dt)
 
         redrawTimer += Double(dt)
@@ -242,6 +304,16 @@ final class WeatherOverlayScene: SKScene {
                 let terminal = -(25 + p.size * 14)
                 p.vel.dy += (terminal - p.vel.dy) * min(1, dt * 2)
                 p.vel.dx += (wind - p.vel.dx) * min(1, dt * 1.5)
+                // The mouse gently blows flakes along as it passes.
+                if cursorSpeed > 30 {
+                    let dx = p.pos.x - cursor.x, dy = p.pos.y - cursor.y
+                    let d2 = dx * dx + dy * dy
+                    if d2 < 50 * 50 {
+                        let f = 1 - d2.squareRoot() / 50
+                        p.vel.dx += cursorVel.dx * f * dt * 5
+                        p.vel.dy += cursorVel.dy * f * dt * 5
+                    }
+                }
                 let sway = sin(elapsed * 1.3 + p.phase) * (6 + p.size * 2)
                 p.pos.x += (p.vel.dx + sway) * dt
                 p.pos.y += p.vel.dy * dt
@@ -260,8 +332,6 @@ final class WeatherOverlayScene: SKScene {
 
     /// Returns true if the particle hit something (and should disappear).
     private func land(_ p: inout Particle, oldY: CGFloat, windows: [TrackedWindow]) -> Bool {
-        // 0) The "buried while you're away" drift swallows everything that reaches it.
-        if let buryTop = moments.buryTopY(atGlobalX: p.pos.x), p.pos.y <= buryTop, p.vel.dy <= 0 { return true }
         guard p.settles else { return false }
         // 1) Window tops, front to back. A flake lands on the first top edge it crosses
         //    that isn't hidden behind another window.

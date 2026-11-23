@@ -64,7 +64,7 @@ final class OverlayController {
     func sendPlough() { overlays.forEach { $0.scene.moments.sendPlough() } }
     func buildSnowman() {
         // One snowman, on whichever screen has room.
-        for overlay in overlays.shuffled() where overlay.scene.moments.buildSnowman(force: true) { return }
+        for overlay in overlays.shuffled() where overlay.scene.moments.buildSnowman() { return }
     }
     func demoBury() { overlays.forEach { $0.scene.moments.demoBury() } }
 
