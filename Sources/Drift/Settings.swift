@@ -53,6 +53,15 @@ final class AppSettings: ObservableObject {
     @Published var paused: Bool { didSet { d.set(paused, forKey: "paused") } }
     @Published var settleOnWindows: Bool { didSet { d.set(settleOnWindows, forKey: "settleOnWindows") } }
     @Published var moments: MomentFrequency { didSet { d.set(moments.rawValue, forKey: "moments") } }
+    @Published var wallpaperEnabled: Bool { didSet { d.set(wallpaperEnabled, forKey: "wallpaperEnabled") } }
+    @Published var wallpaperFolder: URL { didSet { d.set(wallpaperFolder.path, forKey: "wallpaperFolder") } }
+    @Published var rotateMinutes: Int { didSet { d.set(rotateMinutes, forKey: "rotateMinutes") } }
+    @Published var disabledHolidays: Set<String> { didSet { d.set(Array(disabledHolidays), forKey: "disabledHolidays") } }
+
+    var enabledHolidays: Set<Holiday> { Set(Holiday.allCases.filter { !disabledHolidays.contains($0.rawValue) }) }
+
+    static let defaultWallpaperFolder = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Pictures/Drift Wallpapers", isDirectory: true)
 
     private init() {
         source = SceneSource(rawValue: d.string(forKey: "source") ?? "") ?? .snow
@@ -61,5 +70,10 @@ final class AppSettings: ObservableObject {
         paused = d.bool(forKey: "paused")
         settleOnWindows = d.object(forKey: "settleOnWindows") as? Bool ?? true
         moments = MomentFrequency(rawValue: d.string(forKey: "moments") ?? "") ?? .sometimes
+        wallpaperEnabled = d.object(forKey: "wallpaperEnabled") as? Bool ?? true
+        wallpaperFolder = d.string(forKey: "wallpaperFolder").map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? AppSettings.defaultWallpaperFolder
+        rotateMinutes = d.object(forKey: "rotateMinutes") as? Int ?? 30
+        disabledHolidays = Set(d.stringArray(forKey: "disabledHolidays") ?? [])
     }
 }

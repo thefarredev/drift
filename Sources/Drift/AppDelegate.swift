@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let settings = AppSettings.shared
     private let overlay = OverlayController()
     private let weatherService = WeatherService()
+    private lazy var wallpaper = WallpaperManager(folder: settings.wallpaperFolder)
 
     private var statusItem: NSStatusItem!
     private var settingsWindow: NSWindow?
@@ -24,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
 
         overlay.start()
+        try? FileManager.default.createDirectory(at: settings.wallpaperFolder, withIntermediateDirectories: true)
         bindSettings()
 
         // Re-check the forecast every 30 minutes (MET Norway updates roughly hourly).
@@ -37,8 +39,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func bindSettings() {
         settings.$intensity.sink { [weak self] in self?.overlay.intensity = $0 }.store(in: &cancellables)
         settings.$paused.sink { [weak self] paused in
-            self?.overlay.paused = paused
-            self?.statusItem.button?.appearsDisabled = paused
+            guard let self else { return }
+            self.overlay.paused = paused
+            self.statusItem.button?.appearsDisabled = paused
+            self.wallpaper.enabled = self.settings.wallpaperEnabled && !paused
+        }.store(in: &cancellables)
+        settings.$wallpaperEnabled.dropFirst().sink { [weak self] on in
+            guard let self else { return }
+            self.wallpaper.enabled = on && !self.settings.paused
+        }.store(in: &cancellables)
+        settings.$wallpaperFolder.dropFirst().sink { [weak self] url in
+            try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            self?.wallpaper.folder = url
+        }.store(in: &cancellables)
+        settings.$rotateMinutes.sink { [weak self] in self?.wallpaper.rotateMinutes = $0 }.store(in: &cancellables)
+        settings.$disabledHolidays.sink { [weak self] disabled in
+            self?.wallpaper.enabledHolidays = Set(Holiday.allCases.filter { !disabled.contains($0.rawValue) })
         }.store(in: &cancellables)
         settings.$settleOnWindows.sink { [weak self] in self?.overlay.settle = $0 }.store(in: &cancellables)
         settings.$moments.sink { [weak self] in self?.overlay.moments = $0 }.store(in: &cancellables)
@@ -56,10 +72,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func applySource(_ source: SceneSource) {
         switch source {
         case .snow: overlay.weather = .snow; overlay.wind = -8
+            wallpaper.update(condition: .snow, latitude: nil, longitude: nil)
         case .rain: overlay.weather = .rain; overlay.wind = -8
+            wallpaper.update(condition: .rain, latitude: nil, longitude: nil)
         case .clear: overlay.weather = .clear
+            wallpaper.update(condition: .clear, latitude: nil, longitude: nil)
         case .live:
-            if let live { overlay.weather = live.scene; overlay.wind = CGFloat(live.wind) }
+            if let live {
+                overlay.weather = live.scene; overlay.wind = CGFloat(live.wind)
+                wallpaper.update(condition: live.condition, latitude: live.latitude, longitude: live.longitude)
+            }
             DispatchQueue.main.async { self.refreshWeather() }
         }
     }
@@ -68,6 +90,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard settings.source == .live else { return }
         overlay.weather = weather.scene
         overlay.wind = CGFloat(weather.wind)
+        wallpaper.update(condition: weather.condition, latitude: weather.latitude, longitude: weather.longitude)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // Put your own wallpaper back when Drift quits.
+        if wallpaper.enabled { wallpaper.restoreOriginals() }
     }
 
     private func refreshWeather() {
@@ -132,6 +160,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addItem(to: menu, "Snow settles on windows", #selector(toggleSettle), state: settings.settleOnWindows)
         addItem(to: menu, "Sweep away the snow", #selector(sweep))
 
+        if settings.wallpaperEnabled {
+            let count = wallpaper.library.count
+            let note = count == 0 ? "placeholder" : "\(count) image\(count == 1 ? "" : "s")"
+            let info = NSMenuItem(title: "Wallpaper: \(wallpaper.currentDescription) (\(note))", action: nil, keyEquivalent: "")
+            info.isEnabled = false
+            menu.addItem(info)
+            addItem(to: menu, "Next wallpaper", #selector(nextWallpaper))
+        }
+        addItem(to: menu, "Open wallpapers folder", #selector(openWallpapers))
+
         let fun = NSMenuItem(title: "Funny moments", action: nil, keyEquivalent: "")
         let funMenu = NSMenu()
         addItem(to: funMenu, "Send the snow crew", #selector(sendCrew))
@@ -173,6 +211,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func toggleSettle() { settings.settleOnWindows.toggle() }
     @objc private func sweep() { overlay.clearSnow() }
+    @objc private func nextWallpaper() { wallpaper.next() }
+    @objc private func openWallpapers() { NSWorkspace.shared.open(settings.wallpaperFolder) }
     @objc private func sendCrew() { overlay.sendCrew() }
     @objc private func sendPlough() { overlay.sendPlough() }
     @objc private func buildSnowman() { overlay.buildSnowman() }

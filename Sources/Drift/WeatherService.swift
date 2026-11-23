@@ -8,6 +8,11 @@ struct LiveWeather {
     let temperature: Double   // °C
     let wind: Double          // sideways drift for the particles, pt/s (negative = to the left)
     let place: String
+    let latitude: Double
+    let longitude: Double
+
+    /// Finer-grained condition used to pick wallpapers.
+    var condition: WallpaperCondition { WallpaperCondition(symbol: symbol) }
 }
 
 /// Turns a city name into coordinates (Apple's geocoder) and fetches the forecast
@@ -50,7 +55,8 @@ final class WeatherService {
         let drift = max(-45, min(45, -sin(radians) * (details.wind_speed ?? 0) * 5))
 
         return LiveWeather(scene: Self.scene(for: symbol), symbol: symbol,
-                           temperature: details.air_temperature ?? 0, wind: drift, place: place)
+                           temperature: details.air_temperature ?? 0, wind: drift, place: place,
+                           latitude: lat, longitude: lon)
     }
 
     /// MET symbol codes: https://api.met.no/weatherapi/weathericon/2.0/documentation
