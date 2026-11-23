@@ -35,8 +35,8 @@ enum Intensity: String, CaseIterable, Identifiable {
     /// Particles spawned per second, per 1000pt of screen width.
     var spawnRate: Double {
         switch self {
-        case .light: return 18
-        case .medium: return 45
+        case .light: return 9
+        case .medium: return 18
         case .heavy: return 100
         }
     }
