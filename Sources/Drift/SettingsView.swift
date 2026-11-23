@@ -25,21 +25,7 @@ struct SettingsView: View {
                     ForEach(MomentFrequency.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                Picker("Bury my screen when I'm away", selection: $settings.awayMinutes) {
-                    Text("Never").tag(0)
-                    Text("After 2 min").tag(2)
-                    Text("After 5 min").tag(5)
-                    Text("After 10 min").tag(10)
-                    Text("After 20 min").tag(20)
-                }
-                Picker("Frost my screen when I'm away", selection: $settings.frostMinutes) {
-                    Text("Never").tag(0)
-                    Text("After 1 min").tag(1)
-                    Text("After 3 min").tag(3)
-                    Text("After 5 min").tag(5)
-                    Text("After 10 min").tag(10)
-                }
-                Text("Snow workers clear your windows, a plough clears the Dock, and snowmen pop up in deep snow. While you're away the screen slowly fills with snow, and the crew digs you out when you're back. Frost only forms when it's snowing or cold outside, and melts when you're back; your pointer melts it faster. Both are skipped while a video is playing.")
+                Text("Snow workers clear your windows, a plough clears the Dock, and snowmen slowly grow in snow nobody clears. Move your pointer through the snow to push it around or knock a snowman over.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

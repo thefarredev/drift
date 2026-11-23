@@ -42,8 +42,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }.store(in: &cancellables)
         settings.$settleOnWindows.sink { [weak self] in self?.overlay.settle = $0 }.store(in: &cancellables)
         settings.$moments.sink { [weak self] in self?.overlay.moments = $0 }.store(in: &cancellables)
-        settings.$awayMinutes.sink { [weak self] in self?.overlay.awayMinutes = $0 }.store(in: &cancellables)
-        settings.$frostMinutes.sink { [weak self] in self?.overlay.frostMinutes = $0 }.store(in: &cancellables)
         settings.$source.sink { [weak self] source in
             // @Published fires before the value is stored, so act on the new value directly.
             self?.applySource(source)
@@ -70,7 +68,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard settings.source == .live else { return }
         overlay.weather = weather.scene
         overlay.wind = CGFloat(weather.wind)
-        overlay.temperature = weather.temperature
     }
 
     private func refreshWeather() {
@@ -140,8 +137,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addItem(to: funMenu, "Send the snow crew", #selector(sendCrew))
         addItem(to: funMenu, "Call the snow plough", #selector(sendPlough))
         addItem(to: funMenu, "Build a snowman", #selector(buildSnowman))
-        addItem(to: funMenu, "Bury my screen (demo)", #selector(demoBury))
-        addItem(to: funMenu, "Frost my screen (demo)", #selector(demoFrost))
         funMenu.addItem(.separator())
         for level in MomentFrequency.allCases {
             let item = NSMenuItem(title: "Happen on their own: \(level.title)", action: #selector(pickMoments(_:)), keyEquivalent: "")
@@ -181,8 +176,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func sendCrew() { overlay.sendCrew() }
     @objc private func sendPlough() { overlay.sendPlough() }
     @objc private func buildSnowman() { overlay.buildSnowman() }
-    @objc private func demoBury() { overlay.demoBury() }
-    @objc private func demoFrost() { overlay.demoFrost() }
     @objc private func pickMoments(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let level = MomentFrequency(rawValue: raw) else { return }
         settings.moments = level

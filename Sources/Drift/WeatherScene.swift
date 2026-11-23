@@ -20,7 +20,7 @@ final class Pile {
     var originX: CGFloat          // global x of column 0
     var topY: CGFloat             // global y of the surface the snow sits on
     var heights: [CGFloat]
-    var maxHeight: CGFloat         // raised while the screen is being buried
+    let maxHeight: CGFloat
     let node = SKShapeNode()
 
     init(windowID: CGWindowID, originX: CGFloat, width: CGFloat, topY: CGFloat, maxHeight: CGFloat) {
@@ -95,8 +95,6 @@ final class WeatherOverlayScene: SKScene {
     let groundID: CGWindowID = 0
     /// Workers, snow plough, snowmen and the "buried while you're away" layer.
     private(set) lazy var moments = MomentsDirector(scene: self)
-    /// Frost creeping over the screen while you're away.
-    private(set) lazy var frost = FrostLayer(scene: self)
 
     private lazy var flakeTexture = WeatherOverlayScene.makeFlakeTexture()
     private lazy var dropTexture = WeatherOverlayScene.makeDropTexture()
@@ -225,7 +223,6 @@ final class WeatherOverlayScene: SKScene {
         melt(dt: dt)
         updateCursor(dt: dt)
         moments.update(dt: dt)
-        frost.update(dt: dt)
 
         redrawTimer += Double(dt)
         if redrawTimer > 0.12 {
@@ -254,7 +251,7 @@ final class WeatherOverlayScene: SKScene {
 
     private func spawnNew(dt: CGFloat) {
         guard weather != .clear else { return }
-        spawnAccumulator += spawnRate * Double(moments.spawnBoost) * Double(screenFrame.width / 1000) * Double(dt)
+        spawnAccumulator += spawnRate * Double(screenFrame.width / 1000) * Double(dt)
         while spawnAccumulator >= 1 {
             spawnAccumulator -= 1
             let x = CGFloat.random(in: screenFrame.minX - 40...screenFrame.maxX + 40)
