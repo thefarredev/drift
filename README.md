@@ -34,7 +34,7 @@ To open it in Xcode instead: `open Package.swift`, then press Run.
 
 ## Wallpapers
 
-Put images in `~/Pictures/Drift Wallpapers` (or choose another folder in Settings), named:
+Put images in `Assets/Wallpapers/` inside this project (or choose another folder in Settings), named:
 
 - `<condition>_<time>_NN.jpg`, e.g. `snow_night_01.jpg`. Conditions: snow, rain, storm, fog, cloudy, clear. Times: morning, day, dusk, night.
 - `<condition>_NN.jpg` for any time of day, e.g. `fog_01.jpg`.

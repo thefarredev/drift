@@ -60,8 +60,13 @@ final class AppSettings: ObservableObject {
 
     var enabledHolidays: Set<Holiday> { Set(Holiday.allCases.filter { !disabledHolidays.contains($0.rawValue) }) }
 
-    static let defaultWallpaperFolder = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Pictures/Drift Wallpapers", isDirectory: true)
+    /// All project assets live in the project folder: <project>/Assets/Wallpapers.
+    /// Worked out from this source file's location, so it follows the project wherever it is.
+    static let defaultWallpaperFolder = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()      // Sources/Drift
+        .deletingLastPathComponent()      // Sources
+        .deletingLastPathComponent()      // project root
+        .appendingPathComponent("Assets/Wallpapers", isDirectory: true)
 
     private init() {
         source = SceneSource(rawValue: d.string(forKey: "source") ?? "") ?? .snow
