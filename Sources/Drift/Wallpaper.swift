@@ -150,9 +150,9 @@ struct WallpaperLibrary {
 enum PlaceholderSky {
     static func image(condition: WallpaperCondition, time: TimeOfDay, holiday: Holiday?) -> URL? {
         let key = holiday.map { "holiday_\($0.rawValue)" } ?? "\(condition.rawValue)_\(time.rawValue)"
-        guard let dir = try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
-                                                     appropriateFor: nil, create: true)
-            .appendingPathComponent("Drift/Placeholders", isDirectory: true) else { return nil }
+        // Kept inside the project next to the real wallpapers (git-ignored; recreated when missing).
+        let dir = AppSettings.defaultWallpaperFolder.deletingLastPathComponent()
+            .appendingPathComponent("Placeholders", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("\(key)_v1.png")
         if FileManager.default.fileExists(atPath: url.path) { return url }
@@ -345,7 +345,7 @@ final class WallpaperManager {
         for screen in NSScreen.screens {
             let id = screenID(screen)
             guard saved[id] == nil, let url = NSWorkspace.shared.desktopImageURL(for: screen),
-                  !url.path.hasPrefix(folder.path), !url.path.contains("/Drift/Placeholders/") else { continue }
+                  !url.path.hasPrefix(folder.path), !url.path.contains("/Assets/Placeholders/") else { continue }
             saved[id] = url.absoluteString
             changed = true
         }
