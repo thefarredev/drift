@@ -15,6 +15,10 @@ final class OverlayController {
     var paused = false { didSet { applySettings() } }
     var moments: MomentFrequency = .sometimes { didSet { applySettings() } }
     var awayMinutes = 5
+    var frostMinutes = 3
+    /// Outside temperature in °C from the live forecast, when known.
+    var temperature: Double?
+    private var isFrosting = false
 
     private var awayTimer: Timer?
     private var isAway = false
@@ -67,6 +71,10 @@ final class OverlayController {
         for overlay in overlays.shuffled() where overlay.scene.moments.buildSnowman() { return }
     }
     func demoBury() { overlays.forEach { $0.scene.moments.demoBury() } }
+    func demoFrost() { overlays.forEach { $0.scene.frost.demo() } }
+
+    /// Frost only forms when it's snowing or cold outside.
+    private var isCold: Bool { weather == .snow || (temperature ?? 99) <= 3 }
 
     /// Fills the screen with snow while you're away (only when it's snowing), and
     /// sends the dig-out crew as soon as you touch the keyboard or mouse again.
@@ -74,17 +82,29 @@ final class OverlayController {
         let anyInput = CGEventType(rawValue: ~0)!
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInput)
 
-        if isAway {
-            if idle < 2 {
+        // Back at the keyboard or mouse: melt the frost and dig out the snow.
+        if idle < 2 {
+            if isFrosting {
+                isFrosting = false
+                overlays.forEach { $0.scene.frost.melt() }
+            }
+            if isAway {
                 isAway = false
                 overlays.forEach { $0.scene.moments.returnFromAway() }
             }
             return
         }
-        guard awayMinutes > 0, weather == .snow, settle, !paused,
-              idle > Double(awayMinutes * 60), !Self.isWatchingVideo() else { return }
-        isAway = true
-        overlays.forEach { $0.scene.moments.startBurying(minutes: 6) }
+        guard !paused, !(isAway && isFrosting) else { return }
+        let watching = Self.isWatchingVideo()
+
+        if !isFrosting, frostMinutes > 0, isCold, idle > Double(frostMinutes * 60), !watching {
+            isFrosting = true
+            overlays.forEach { $0.scene.frost.startFreezing(minutes: 4) }
+        }
+        if !isAway, awayMinutes > 0, weather == .snow, settle, idle > Double(awayMinutes * 60), !watching {
+            isAway = true
+            overlays.forEach { $0.scene.moments.startBurying(minutes: 6) }
+        }
     }
 
     /// Video players keep the display awake; don't bury someone watching a film.

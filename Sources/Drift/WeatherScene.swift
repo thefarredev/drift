@@ -95,6 +95,8 @@ final class WeatherOverlayScene: SKScene {
     let groundID: CGWindowID = 0
     /// Workers, snow plough, snowmen and the "buried while you're away" layer.
     private(set) lazy var moments = MomentsDirector(scene: self)
+    /// Frost creeping over the screen while you're away.
+    private(set) lazy var frost = FrostLayer(scene: self)
 
     private lazy var flakeTexture = WeatherOverlayScene.makeFlakeTexture()
     private lazy var dropTexture = WeatherOverlayScene.makeDropTexture()
@@ -223,6 +225,7 @@ final class WeatherOverlayScene: SKScene {
         melt(dt: dt)
         updateCursor(dt: dt)
         moments.update(dt: dt)
+        frost.update(dt: dt)
 
         redrawTimer += Double(dt)
         if redrawTimer > 0.12 {

@@ -55,6 +55,8 @@ final class AppSettings: ObservableObject {
     @Published var moments: MomentFrequency { didSet { d.set(moments.rawValue, forKey: "moments") } }
     /// Minutes without keyboard or mouse before the screen starts filling with snow. 0 = never.
     @Published var awayMinutes: Int { didSet { d.set(awayMinutes, forKey: "awayMinutes") } }
+    /// Minutes without input before frost starts creeping over the screen (when it's cold). 0 = never.
+    @Published var frostMinutes: Int { didSet { d.set(frostMinutes, forKey: "frostMinutes") } }
 
     private init() {
         source = SceneSource(rawValue: d.string(forKey: "source") ?? "") ?? .snow
@@ -64,5 +66,6 @@ final class AppSettings: ObservableObject {
         settleOnWindows = d.object(forKey: "settleOnWindows") as? Bool ?? true
         moments = MomentFrequency(rawValue: d.string(forKey: "moments") ?? "") ?? .sometimes
         awayMinutes = d.object(forKey: "awayMinutes") as? Int ?? 5
+        frostMinutes = d.object(forKey: "frostMinutes") as? Int ?? 3
     }
 }
