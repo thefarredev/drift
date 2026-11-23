@@ -139,6 +139,108 @@ A high mountain meadow under a clear starry night sky with the Milky Way arching
 ```
 Variations: `_02` a quiet seaside village under the stars · `_03` an observatory dome on a hilltop.
 
+### Winter (December to February)
+
+Used on clear and cloudy winter days, ahead of the normal clear and cloudy images. Snow lies on the ground, but none falls in the image. Keep snow in soft blue or grey shadow rather than glaring white, so Drift's white snowflakes and snow piles stay visible. `winter_cloudy` has no time of day, so it is used at any time.
+
+**`winter_clear_morning_01.jpg`**
+```
+A snowy mountain village at sunrise on a still, cold morning, wooden chalets with thick snow on their roofs and thin smoke rising straight from the chimneys, snow-covered pine forest behind, clear sky warming from pale icy blue to soft peach at the horizon, first golden light touching the snowy peaks. Cool blues and lavender shadows on the snow with warm gold and peach light. Village slightly right of centre, horizon about 35 % from the bottom, smooth undisturbed snow with soft blue shadows along the bottom edge (not pure white), simple clear sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, sun disc in the top area, pure white snow areas, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a frozen lake with a wooden boathouse at sunrise · `_03` a snowy farm with a red barn and fence posts.
+
+**`winter_clear_day_01.jpg`**
+```
+A bright clear winter day over a wide snowy valley, a small stone church and a few farmhouses with snow on the roofs, a frozen river winding through, snow-dusted pine and bare birch trees, deep clear blue sky with no clouds, crisp sunlight and long blue shadows across the snow. Deep blues, soft blue-grey snow shadows, warm wood and stone accents. River leads from the bottom left into the centre, horizon about 35 % from the bottom, smooth snow in soft shadow along the bottom edge (not pure white), simple deep-blue sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, pure white sky, large glaring white snow areas, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a snowy mountain hut with skis leaning on the wall · `_03` an old stone bridge over a frozen stream.
+
+**`winter_clear_dusk_01.jpg`**
+```
+A snowy hillside town at winter sunset, warm yellow lights glowing in the windows, snow on every roof, a church tower and bare trees, the sky glowing from orange and pink at the horizon to deep violet above, the snow reflecting pink and purple light. Warm oranges and pinks against cool violet and blue snow shadows. Town across the centre, horizon about 35 % from the bottom, smooth snow in violet shadow along the bottom edge, simple gradient sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, sun disc in the top area, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a frozen lake with skaters' benches and lanterns at sunset · `_03` a snowy forest edge with a wooden cabin.
+
+**`winter_clear_night_01.jpg`**
+```
+A snowy pine forest clearing under a clear starry winter night, a small log cabin with warm glowing windows and a light on the porch, deep snow around it, a crescent moon low above the trees, faint stars across a deep navy sky. Deep navy and blue-violet tones, soft moonlit blue snow, warm orange window glow. Cabin slightly left of centre, horizon about 30 % from the bottom, smooth moonlit snow in soft blue along the bottom edge, darker simple sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, bright moon in the top area, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a snowy village square with a lit fir tree (no decorations) · `_03` a mountain lake with ice and stars reflected in open water.
+
+**`winter_cloudy_01.jpg`**
+```
+A quiet snowy countryside under a soft grey winter sky, a narrow road with snow banks winding past a few farmhouses and a wooden fence, snow-heavy pine trees, low soft clouds with gentle texture and a faint brighter patch where the sun is hidden. Muted blue-greys, soft grey-white snow and warm wood browns. Road leads from the bottom centre into the distance, horizon about 35 % from the bottom, smooth snow along the bottom edge, mid-tone grey-blue cloudy sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, pure white sky, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a snowy harbour with fishing boats and grey water · `_03` a forest path between tall snowy firs.
+
+### Spring (March to May)
+
+Used on clear and cloudy spring days, ahead of the normal clear and cloudy images.
+
+**`spring_clear_morning_01.jpg`**
+```
+An orchard of blossoming cherry and apple trees at sunrise, soft pink and white blossom, fresh green grass with small wildflowers and dew, a wooden gate and a stone path leading to a small farmhouse, light mist in the distance, clear sky warming from pale blue to soft peach. Soft pinks, fresh greens and warm gold light. Path leads from the bottom centre toward the farmhouse, horizon about 35 % from the bottom, calm low-detail grass along the bottom edge, simple clear sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, petals falling through the air, sun disc in the top area, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a misty river with weeping willows in fresh green · `_03` a hillside of tulip rows in soft colours.
+
+**`spring_clear_day_01.jpg`**
+```
+A green valley in spring under a clear blue sky, a winding stream with a small wooden footbridge, meadows full of yellow and white wildflowers, young bright-green trees, a few distant farmhouses and soft blue mountains with a little snow left on the highest peaks. Fresh greens, sky blues and touches of yellow and white. Stream leads from the bottom left into the centre, horizon about 35 % from the bottom, calm low-detail meadow along the bottom edge, simple clear blue sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, petals falling through the air, pure white sky, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a village garden with a blossoming tree and a bicycle by the fence · `_03` a lake shore with fresh reeds and a rowing boat.
+
+**`spring_clear_dusk_01.jpg`**
+```
+A gentle rolling landscape of fresh green fields at spring sunset, a lone blossoming tree on a hill, a narrow path and a wooden fence, sky glowing from soft gold at the horizon to pink and lilac above. Warm golds and pinks with fresh green fading into lilac shadows. Tree slightly right of centre, horizon about 35 % from the bottom, calm low-detail field along the bottom edge, simple gradient sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, petals falling through the air, sun disc in the top area, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a river town with lights coming on at sunset · `_03` a hillside vineyard with new leaves.
+
+**`spring_clear_night_01.jpg`**
+```
+A calm spring night over a quiet countryside pond, frogs' lily pads, reeds and a small wooden jetty, blossoming trees softly lit by moonlight, a farmhouse with a warm window in the distance, fireflies glowing softly near the reeds, a deep blue starry sky. Deep blues and teal with soft silver moonlight and small warm accents. Pond across the centre, horizon about 30 % from the bottom, calm dark water along the bottom edge, darker simple sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, bright moon in the top area, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a village street with blossoming trees under street lamps · `_03` a hilltop meadow under the stars.
+
+**`spring_cloudy_01.jpg`**
+```
+A spring meadow under a soft grey-blue sky with gentle clouds, fresh green grass and patches of wildflowers, a row of blossoming trees along a quiet country road, a small farmhouse with a red roof, the ground still slightly damp. Soft greens, muted pinks and gentle grey-blue. Road leads from the bottom right into the centre, horizon about 35 % from the bottom, calm low-detail grass along the bottom edge, mid-tone cloudy sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, pure white sky, petals falling through the air, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a park with a pond and tulip beds on an overcast day · `_03` green terraced hills with soft clouds.
+
+### Summer (June to August)
+
+Used on clear and cloudy summer days, ahead of the normal clear and cloudy images.
+
+**`summer_clear_morning_01.jpg`**
+```
+A calm lake at summer sunrise, a wooden dock with a rowing boat, tall green pine and birch trees on the shore, soft mist rising from the still water, warm early light on the far hills, clear sky warming from soft blue to peach. Fresh greens, soft blues and warm gold. Dock leads from the bottom left into the centre, horizon about 40 % from the bottom, calm water along the bottom edge, simple clear sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, sun disc in the top area, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` sunflower fields with morning mist · `_03` a seaside path with dunes and grasses at dawn.
+
+**`summer_clear_day_01.jpg`**
+```
+A summer beach cove on a sunny day, soft sand, gentle turquoise waves, a striped beach umbrella and two deck chairs small in the middle distance, green pine-covered cliffs on one side, a few small sailboats on the sea, clear deep-blue sky with a couple of small soft clouds. Turquoise, sandy gold, pine green and deep blue. Cove across the centre, sea horizon about 40 % from the bottom, calm sand along the bottom edge, simple deep-blue sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, pure white sky, crowds, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` an alpine meadow with wildflowers and a wooden hut · `_03` a river with stone bridge and green hills in midday sun.
+
+**`summer_clear_dusk_01.jpg`**
+```
+A golden summer evening over wheat fields, round hay bales, a winding dirt road and a lone oak tree, warm light low on the horizon, sky glowing from deep orange to rose and soft violet above. Warm golds, ambers and rose with soft purple shadows. Road leads from the bottom into the centre, horizon about 35 % from the bottom, calm low-detail field along the bottom edge, simple gradient sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, sun disc in the top area, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a seaside town promenade at sunset with lights coming on · `_03` a lakeside camp with a small campfire at dusk.
+
+**`summer_clear_night_01.jpg`**
+```
+A warm summer night by the sea, a quiet harbour with small boats, a few houses with warm lit windows and a string of soft lights along the waterfront, calm water reflecting the lights, a deep blue sky full of stars. Deep blues and indigo with warm golden reflections. Harbour across the centre, horizon about 35 % from the bottom, calm dark water along the bottom edge, darker simple sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, bright moon in the top area, fireworks, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a meadow with fireflies and a tent under the Milky Way · `_03` a rooftop terrace with plants and city lights in the distance.
+
+**`summer_cloudy_01.jpg`**
+```
+A summer countryside under soft, puffy grey-and-white clouds with blue showing between them, lush green hills, a small lake, a wooden fence and grazing sheep far away, warm diffuse light. Lush greens, soft grey-blue and warm light. Lake slightly left of centre, horizon about 35 % from the bottom, calm low-detail grass along the bottom edge, mid-tone cloudy sky along the top edge. Painterly digital illustration in a cozy, calm storybook style, soft brush textures, gentle gradients, subtle film grain, slightly muted natural colours, soft atmospheric depth, wide cinematic landscape composition for a desktop wallpaper. Avoid: falling snow, snowflakes in the air, falling rain, text, letters, logos, watermark, signature, frame, border, people in the foreground, pure white sky, oversaturated colours, HDR look, lens flare.
+```
+Variations: `_02` a coastal cliff path with sea and soft clouds · `_03` a quiet village square with plane trees on an overcast day.
+
 ### Autumn (used on clear or cloudy days, September to November)
 
 **`autumn_01.jpg`**
