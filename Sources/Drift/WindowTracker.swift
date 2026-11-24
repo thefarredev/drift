@@ -16,8 +16,14 @@ final class WindowTracker {
     /// Front-to-back order, like the system reports it: app windows first, then widgets
     /// (which sit on the desktop, behind every app window).
     private(set) var windows: [TrackedWindow] = []
-    /// Let snow settle on desktop widgets too.
-    var includeDesktopItems = true
+    /// Let snow settle on desktop widgets and desktop file icons too.
+    var includeDesktopItems = true { didSet { if !includeDesktopItems { desktopIcons = [] } } }
+    /// Desktop file icons from Finder (top part of each icon), refreshed every few seconds.
+    private var desktopIcons: [TrackedWindow] = []
+    private var iconTimer: Timer?
+    private var iconFetchRunning = false
+    private var iconBackoffUntil = Date.distantPast
+    private let iconQueue = DispatchQueue(label: "Drift.desktopIcons", qos: .utility)
     /// Called with the IDs of windows that moved or resized since the last poll.
     var onWindowsMoved: (([CGWindowID]) -> Void)?
 
@@ -30,11 +36,17 @@ final class WindowTracker {
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.poll()
         }
+        fetchDesktopIcons()
+        iconTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+            self?.fetchDesktopIcons()
+        }
     }
 
     func stop() {
         timer?.invalidate()
         timer = nil
+        iconTimer?.invalidate()
+        iconTimer = nil
     }
 
     private func poll() {
@@ -80,8 +92,14 @@ final class WindowTracker {
             if let old = lastFrames[id], old != frame { moved.append(id) }
             result.append(TrackedWindow(id: id, frame: frame))
         }
-        // Widgets are behind every app window, so they go after them in front-to-back order.
+        // Widgets are behind every app window, and desktop icons behind the widgets.
         result += widgets
+        if includeDesktopItems {
+            for icon in desktopIcons {
+                frames[icon.id] = icon.frame
+                result.append(icon)
+            }
+        }
 
         // Windows that disappeared (closed or minimised) also drop their snow.
         for id in lastFrames.keys where frames[id] == nil { moved.append(id) }
@@ -90,6 +108,81 @@ final class WindowTracker {
         lastFrames = frames
         if !moved.isEmpty { onWindowsMoved?(moved) }
     }
+
+    // MARK: Desktop icons
+
+    /// Asks Finder (off the main thread) where the desktop icons are. Fails quietly when
+    /// Finder can't be asked (e.g. Automation permission denied) and tries again later.
+    private func fetchDesktopIcons() {
+        guard includeDesktopItems, !iconFetchRunning, Date() >= iconBackoffUntil else { return }
+        iconFetchRunning = true
+        let mainHeight = NSScreen.screens.first?.frame.height ?? 0
+        iconQueue.async { [weak self] in
+            let icons = WindowTracker.readDesktopIcons(mainHeight: mainHeight)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.iconFetchRunning = false
+                if let icons {
+                    self.desktopIcons = self.includeDesktopItems ? icons : []
+                } else {
+                    self.desktopIcons = []
+                    self.iconBackoffUntil = Date().addingTimeInterval(60)
+                }
+            }
+        }
+    }
+
+    /// Icon positions from Finder: "iconSize;x,y;x,y…" (x, y = icon centre, top-left origin).
+    /// Returns nil on any error.
+    private static func readDesktopIcons(mainHeight: CGFloat) -> [TrackedWindow]? {
+        // Desktop icons hidden in Finder's settings: nothing to settle on.
+        if UserDefaults(suiteName: "com.apple.finder")?.object(forKey: "CreateDesktop") as? Bool == false { return [] }
+        let script = """
+        tell application "Finder"
+            set out to (icon size of icon view options of window of desktop) as text
+            repeat with p in (get desktop position of every item of desktop)
+                set out to out & ";" & ((item 1 of p) as text) & "," & ((item 2 of p) as text)
+            end repeat
+            return out
+        end tell
+        """
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { return nil }
+        // Don't let a stuck Finder hold things up.
+        let deadline = Date().addingTimeInterval(4)
+        while process.isRunning && Date() < deadline { usleep(20_000) }
+        if process.isRunning { process.terminate(); return nil }
+        guard process.terminationStatus == 0,
+              let text = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) else { return nil }
+
+        var parts = text.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: ";")
+        guard let first = parts.first, let size = Double(first) else { return nil }
+        parts.removeFirst()
+        // The icon image is a bit smaller than its slot; the snow ledge spans the middle of it.
+        let iconSide = CGFloat(size)
+        let ledge = iconSide * 0.72
+        var icons: [TrackedWindow] = []
+        for part in parts {
+            let xy = part.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+            guard xy.count == 2 else { continue }
+            let cx = CGFloat(xy[0]), cy = CGFloat(xy[1])
+            let top = mainHeight - (cy - iconSide * 0.42)     // Cocoa y of the icon image's top
+            let frame = CGRect(x: cx - ledge / 2, y: top - iconSide * 0.8, width: ledge, height: iconSide * 0.8)
+            // A stable ID from the position: when an icon moves, its old snow falls off.
+            let id = CGWindowID(0x4000_0000)
+                | (CGWindowID(UInt32(truncatingIfNeeded: Int(xy[0]) + 8192) & 0x7FFF) << 15)
+                | CGWindowID(UInt32(truncatingIfNeeded: Int(xy[1]) + 8192) & 0x7FFF)
+            icons.append(TrackedWindow(id: id, frame: frame))
+        }
+        return icons
+    }
+
+    // MARK: Widgets
 
     private var widgetOwners: [pid_t: Bool] = [:]
 
