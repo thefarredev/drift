@@ -46,14 +46,14 @@ final class Pile {
             let d = min((CGFloat(c) + 0.5) * Pile.columnWidth, width - (CGFloat(c) + 0.5) * Pile.columnWidth)
             if r > 0 {
                 guard d < r else { continue }
-                // Follow the corner arc down; the slope gets steeper toward the edge.
-                let u = r - d                                   // horizontal distance into the arc
-                let rise = (r * r - u * u).squareRoot()
-                drops[c] = r - rise
-                let angle = atan2(u, rise) * 180 / .pi          // 0° = flat, 90° = vertical
-                // Snow thins as the arc steepens and slides off beyond ~55°.
+                // Follow the corner down; it gets steeper toward the side edge.
+                drops[c] = Pile.cornerDrop(d / r) * r
+                let step: CGFloat = 0.02
+                let slope = (Pile.cornerDrop(max(0, d / r - step)) - Pile.cornerDrop(min(1, d / r + step))) / (2 * step)
+                let angle = atan(slope) * 180 / .pi             // 0° = flat, 90° = vertical
+                // Snow thins as the edge steepens and slides off beyond ~55°.
                 let hold = max(0, 1 - angle / 55)
-                caps[c] = maxHeight * hold * hold
+                caps[c] = maxHeight * hold.squareRoot()
             } else {
                 // Square edges stay thin so the pile looks rounded, like real snow on a ledge.
                 let edgeFalloff: CGFloat = 4
@@ -71,6 +71,24 @@ final class Pile {
     }
 
     var width: CGFloat { CGFloat(heights.count) * Pile.columnWidth }
+
+    /// A widget card's continuous corner, measured from a real widget: distance from the
+    /// side edge → how far the top edge has dropped, both as fractions of the corner's reach.
+    static let cornerProfile: [(d: CGFloat, drop: CGFloat)] = [
+        (0, 0.92), (0.059, 0.784), (0.137, 0.549), (0.216, 0.412), (0.373, 0.235),
+        (0.529, 0.157), (0.686, 0.078), (0.843, 0.020), (1, 0),
+    ]
+
+    /// Drop of the corner (fraction of its reach) at `t` = distance from the side edge / reach.
+    static func cornerDrop(_ t: CGFloat) -> CGFloat {
+        let t = max(0, min(1, t))
+        let p = cornerProfile
+        for i in 1..<p.count where t <= p[i].d {
+            let f = (t - p[i - 1].d) / (p[i].d - p[i - 1].d)
+            return p[i - 1].drop + (p[i].drop - p[i - 1].drop) * f
+        }
+        return 0
+    }
 
     func column(forX x: CGFloat) -> Int? {
         let c = Int((x - originX) / Pile.columnWidth)

@@ -5,18 +5,23 @@ import CoreGraphics
 struct TrackedWindow {
     let id: CGWindowID
     let frame: CGRect
-    /// Radius of the rounded top corners snow should follow (0 = square, like app windows).
+    /// How far the rounded top corners reach in from each side (0 = square, like app windows).
     var cornerRadius: CGFloat = 0
 }
 
-/// Desktop widget geometry. The window list reports widget windows on a 180 pt grid
-/// (180×180, 360×180, 720×360) that includes transparent margin around each card;
-/// cards sit 10 pt apart, so each window has a 5 pt margin. Cards have rounded corners.
+/// Desktop widget geometry, measured from a 2× screenshot of real widgets (macOS 27).
+/// The window list reports widget windows on a 180 pt grid (180×180, 360×180, 720×360)
+/// that includes transparent padding around each card.
 enum WidgetGeometry {
-    static let margin: CGFloat = 5
-    static let cornerRadius: CGFloat = 20
+    /// Cards are 15 pt apart side by side: 7.5 pt of padding on each side of a window.
+    static let marginX: CGFloat = 7.5
+    /// The card's top edge is 9 pt below the window's top.
+    static let marginTop: CGFloat = 9
     /// Snow sits this much into the card's top edge so no hairline gap shows.
     static let sink: CGFloat = 1
+    /// How far the continuous ("squircle") corner reaches in from each side (it also
+    /// drops about the same distance). The exact shape is in `Pile.cornerProfile`.
+    static let cornerExtent: CGFloat = 25.5
 }
 
 /// Reads the position of every visible app window a few times per second, plus desktop
@@ -94,11 +99,13 @@ final class WindowTracker {
                                height: cgBounds.height)
             if isWidget {
                 // The window includes a little transparent margin around the widget card itself.
-                var card = frame.insetBy(dx: WidgetGeometry.margin, dy: WidgetGeometry.margin)
-                card.size.height -= WidgetGeometry.sink
+                let card = CGRect(x: frame.minX + WidgetGeometry.marginX,
+                                  y: frame.minY,
+                                  width: frame.width - 2 * WidgetGeometry.marginX,
+                                  height: frame.height - WidgetGeometry.marginTop - WidgetGeometry.sink)
                 frames[id] = card
                 if let old = lastFrames[id], old != card { moved.append(id) }
-                widgets.append(TrackedWindow(id: id, frame: card, cornerRadius: WidgetGeometry.cornerRadius))
+                widgets.append(TrackedWindow(id: id, frame: card, cornerRadius: WidgetGeometry.cornerExtent))
                 continue
             }
             frames[id] = frame
