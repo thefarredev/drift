@@ -5,7 +5,9 @@ import SpriteKit
 /// with screen changes, power state and the current weather.
 final class OverlayController {
     let tracker = WindowTracker()
-    private var overlays: [(window: NSPanel, view: SKView, scene: WeatherOverlayScene)] = []
+    /// The renderer view for each screen, in NSScreen.screens order.
+    var sceneViews: [SceneView] { overlays.map(\.view) }
+    private var overlays: [(window: NSPanel, view: SceneView, scene: WeatherOverlayScene)] = []
 
     var weather: WeatherScene = .snow { didSet { applySettings() } }
     var intensity: Intensity = .medium { didSet { applySettings() } }
@@ -62,7 +64,10 @@ final class OverlayController {
     func clearSnow() { overlays.forEach { $0.scene.clearAllSnow() } }
 
     private func rebuild() {
-        overlays.forEach { $0.window.orderOut(nil) }
+        for overlay in overlays {
+            overlay.view.tearDown()
+            overlay.window.orderOut(nil)
+        }
         overlays.removeAll()
 
         for screen in NSScreen.screens {
@@ -81,17 +86,13 @@ final class OverlayController {
             window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
             window.isReleasedWhenClosed = false
 
-            let view = SKView(frame: CGRect(origin: .zero, size: screen.frame.size))
-            view.allowsTransparency = true
-            view.preferredFramesPerSecond = 60
-            view.ignoresSiblingOrder = true
-
             // visibleFrame excludes the Dock and menu bar; its bottom is the top of the Dock.
             let scene = WeatherOverlayScene(screenFrame: screen.frame,
                                             dockY: screen.visibleFrame.minY,
                                             usableTopY: screen.visibleFrame.maxY)
             scene.tracker = tracker
-            view.presentScene(scene)
+            // Each screen renders on its own display link, at its own refresh rate.
+            let view = SceneView(frame: CGRect(origin: .zero, size: screen.frame.size), scene: scene)
 
             window.contentView = view
             window.setFrame(screen.frame, display: true)
@@ -113,7 +114,9 @@ final class OverlayController {
             overlay.scene.settle = settle
             overlay.scene.moments.frequency = moments
             overlay.view.isPaused = paused
-            overlay.view.preferredFramesPerSecond = (calm || weather == .clear) ? 30 : 60
+            // Up to 75 fps normally (120 Hz screens run at an even 60, 75 Hz ones at 75);
+            // about half that when calm or when nothing is falling.
+            overlay.view.frameRateCap = (calm || weather == .clear) ? 40 : 75
             overlay.window.alphaValue = paused ? 0 : 1
         }
     }
