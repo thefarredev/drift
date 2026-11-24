@@ -22,13 +22,48 @@ final class Pile {
     var heights: [CGFloat]
     let maxHeight: CGFloat
     let node = SKShapeNode()
+    /// How far below `topY` each column's base sits: 0 on a flat top, more along rounded corners.
+    let baseDrop: [CGFloat]
+    /// Most snow each column can hold (thin near edges; none where a rounded corner is too steep).
+    private let caps: [CGFloat]
+    /// Columns at each end whose cap is below maxHeight (only those need clamping).
+    private let edgeColumns: Int
 
-    init(windowID: CGWindowID, originX: CGFloat, width: CGFloat, topY: CGFloat, maxHeight: CGFloat) {
+    init(windowID: CGWindowID, originX: CGFloat, width: CGFloat, topY: CGFloat, maxHeight: CGFloat,
+         cornerRadius: CGFloat = 0) {
         self.windowID = windowID
         self.originX = originX
         self.topY = topY
         self.maxHeight = maxHeight
-        self.heights = Array(repeating: 0, count: max(1, Int(width / Pile.columnWidth)))
+        let count = max(1, Int(width / Pile.columnWidth))
+        self.heights = Array(repeating: 0, count: count)
+
+        var drops = Array(repeating: CGFloat(0), count: count)
+        var caps = Array(repeating: maxHeight, count: count)
+        let r = min(cornerRadius, width / 2)
+        for c in 0..<count {
+            // Distance from the nearer side edge, at the column's centre.
+            let d = min((CGFloat(c) + 0.5) * Pile.columnWidth, width - (CGFloat(c) + 0.5) * Pile.columnWidth)
+            if r > 0 {
+                guard d < r else { continue }
+                // Follow the corner arc down; the slope gets steeper toward the edge.
+                let u = r - d                                   // horizontal distance into the arc
+                let rise = (r * r - u * u).squareRoot()
+                drops[c] = r - rise
+                let angle = atan2(u, rise) * 180 / .pi          // 0° = flat, 90° = vertical
+                // Snow thins as the arc steepens and slides off beyond ~55°.
+                let hold = max(0, 1 - angle / 55)
+                caps[c] = maxHeight * hold * hold
+            } else {
+                // Square edges stay thin so the pile looks rounded, like real snow on a ledge.
+                let edgeFalloff: CGFloat = 4
+                let i = CGFloat(Int(d / Pile.columnWidth))
+                if i < edgeFalloff { caps[c] = maxHeight * (i + 1) / (edgeFalloff + 1) }
+            }
+        }
+        baseDrop = drops
+        self.caps = caps
+        edgeColumns = min(count, (caps.firstIndex { $0 >= maxHeight } ?? count))
         node.fillColor = NSColor(white: 1, alpha: 0.96)
         node.strokeColor = NSColor(white: 0.85, alpha: 0.6)
         node.lineWidth = 0.5
@@ -42,7 +77,7 @@ final class Pile {
         return heights.indices.contains(c) ? c : nil
     }
 
-    func surfaceY(atColumn c: Int) -> CGFloat { topY + heights[c] }
+    func surfaceY(atColumn c: Int) -> CGFloat { topY - baseDrop[c] + heights[c] }
 
     /// Add one flake's worth of snow, letting it slide sideways if the slope is too steep.
     func add(atColumn start: Int, amount: CGFloat) {
@@ -56,13 +91,12 @@ final class Pile {
                 c = (left < right) ? c - 1 : c + 1
             } else { break }
         }
-        heights[c] = min(maxHeight, heights[c] + amount)
-        // Edges of a window stay thin so the pile looks rounded, like real snow on a ledge.
-        let edgeFalloff: CGFloat = 4
-        for i in 0..<min(Int(edgeFalloff), heights.count) {
-            let cap = maxHeight * CGFloat(i + 1) / (edgeFalloff + 1)
-            heights[i] = min(heights[i], cap)
-            heights[heights.count - 1 - i] = min(heights[heights.count - 1 - i], cap)
+        heights[c] = min(caps[c], heights[c] + amount)
+        // Keep the thin edges (and steep rounded corners) thin.
+        for i in 0..<edgeColumns {
+            let j = heights.count - 1 - i
+            heights[i] = min(heights[i], caps[i])
+            heights[j] = min(heights[j], caps[j])
         }
     }
 
@@ -385,7 +419,7 @@ final class WeatherOverlayScene: SKScene {
         guard w.frame.maxY < usableTopY - 4 else { return nil }
         if let existing = piles[w.id] { return existing }
         let pile = Pile(windowID: w.id, originX: w.frame.minX, width: w.frame.width,
-                        topY: w.frame.maxY, maxHeight: 22)
+                        topY: w.frame.maxY, maxHeight: 22, cornerRadius: w.cornerRadius)
         piles[w.id] = pile
         addChild(pile.node)
         return pile
@@ -418,7 +452,19 @@ final class WeatherOverlayScene: SKScene {
             let ox = pile.originX - screenFrame.minX
             let oy = pile.topY - screenFrame.minY
             let index = order[pile.windowID]
-            var drawing = false
+            // Each visible run of snow is drawn along the top of the snow, then back along its
+            // base, so the base can follow a rounded corner instead of a straight line.
+            var top: [CGPoint] = []
+            var base: [CGPoint] = []
+            func flush() {
+                guard let first = top.first else { return }
+                path.move(to: base.first ?? first)
+                for p in top { path.addLine(to: p) }
+                for p in base.reversed() { path.addLine(to: p) }
+                path.closeSubpath()
+                top.removeAll()
+                base.removeAll()
+            }
 
             for (c, h) in pile.heights.enumerated() {
                 let gx = pile.originX + CGFloat(c) * Pile.columnWidth
@@ -426,18 +472,23 @@ final class WeatherOverlayScene: SKScene {
                 let hidden = index.map { tracker?.isCovered(CGPoint(x: gx, y: pile.topY + 1), inFrontOf: $0) ?? false } ?? false
                 let height = hidden ? 0 : h
                 let x = ox + CGFloat(c) * Pile.columnWidth
+                let y = oy - pile.baseDrop[c]
                 if height > 0.3 {
-                    if !drawing { path.move(to: CGPoint(x: x, y: oy)); drawing = true }
-                    path.addLine(to: CGPoint(x: x, y: oy + height))
-                } else if drawing {
-                    path.addLine(to: CGPoint(x: x, y: oy))
-                    path.closeSubpath()
-                    drawing = false
+                    if top.isEmpty { top.append(CGPoint(x: x, y: y)); base.append(CGPoint(x: x, y: y)) }
+                    top.append(CGPoint(x: x + Pile.columnWidth / 2, y: y + height))
+                    base.append(CGPoint(x: x + Pile.columnWidth / 2, y: y))
+                } else if !top.isEmpty {
+                    top.append(CGPoint(x: x, y: y))
+                    base.append(CGPoint(x: x, y: y))
+                    flush()
                 }
             }
-            if drawing {
-                path.addLine(to: CGPoint(x: ox + pile.width, y: oy))
-                path.closeSubpath()
+            if !top.isEmpty {
+                let last = pile.heights.count - 1
+                let end = CGPoint(x: ox + pile.width, y: oy - pile.baseDrop[last])
+                top.append(end)
+                base.append(end)
+                flush()
             }
             pile.node.path = path
         }

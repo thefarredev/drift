@@ -5,6 +5,18 @@ import CoreGraphics
 struct TrackedWindow {
     let id: CGWindowID
     let frame: CGRect
+    /// Radius of the rounded top corners snow should follow (0 = square, like app windows).
+    var cornerRadius: CGFloat = 0
+}
+
+/// Desktop widget geometry. The window list reports widget windows on a 180 pt grid
+/// (180×180, 360×180, 720×360) that includes transparent margin around each card;
+/// cards sit 10 pt apart, so each window has a 5 pt margin. Cards have rounded corners.
+enum WidgetGeometry {
+    static let margin: CGFloat = 5
+    static let cornerRadius: CGFloat = 20
+    /// Snow sits this much into the card's top edge so no hairline gap shows.
+    static let sink: CGFloat = 1
 }
 
 /// Reads the position of every visible app window a few times per second, plus desktop
@@ -81,11 +93,12 @@ final class WindowTracker {
                                width: cgBounds.width,
                                height: cgBounds.height)
             if isWidget {
-                // The window includes a little transparent margin around the widget itself.
-                let inset = frame.insetBy(dx: 5, dy: 5)
-                frames[id] = inset
-                if let old = lastFrames[id], old != inset { moved.append(id) }
-                widgets.append(TrackedWindow(id: id, frame: inset))
+                // The window includes a little transparent margin around the widget card itself.
+                var card = frame.insetBy(dx: WidgetGeometry.margin, dy: WidgetGeometry.margin)
+                card.size.height -= WidgetGeometry.sink
+                frames[id] = card
+                if let old = lastFrames[id], old != card { moved.append(id) }
+                widgets.append(TrackedWindow(id: id, frame: card, cornerRadius: WidgetGeometry.cornerRadius))
                 continue
             }
             frames[id] = frame
