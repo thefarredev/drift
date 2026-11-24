@@ -40,6 +40,11 @@ final class SceneView: NSView {
         metalLayer.isOpaque = false
         metalLayer.framebufferOnly = true
         metalLayer.maximumDrawableCount = 3
+        // Each scene keeps its own screen's size in points and is mapped 1:1 onto this view's
+        // drawable. (.resizeFill only works with SKView: under SKRenderer SpriteKit resizes the
+        // scene using whichever screen is currently "main", so the other screen's snow got scaled.)
+        scene.scaleMode = .fill
+        scene.size = frame.size
         renderer?.scene = scene
         renderer?.ignoresSiblingOrder = true
     }
@@ -67,6 +72,7 @@ final class SceneView: NSView {
 
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
+        if newSize.width > 0, newSize.height > 0 { scene.size = newSize }
         updateDrawableSize()
     }
 
