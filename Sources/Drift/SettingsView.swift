@@ -71,6 +71,8 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 Toggle("Snow settles on windows and the Dock", isOn: $settings.settleOnWindows)
+                Toggle("Snow settles on widgets and desktop files", isOn: $settings.settleOnDesktop)
+                    .disabled(!settings.settleOnWindows)
                 Text("Effects calm down automatically in Low Power Mode or with Reduce Motion on.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

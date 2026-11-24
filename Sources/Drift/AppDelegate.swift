@@ -57,6 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.wallpaper.enabledHolidays = Set(Holiday.allCases.filter { !disabled.contains($0.rawValue) })
         }.store(in: &cancellables)
         settings.$settleOnWindows.sink { [weak self] in self?.overlay.settle = $0 }.store(in: &cancellables)
+        settings.$settleOnDesktop.sink { [weak self] in self?.overlay.tracker.includeDesktopItems = $0 }.store(in: &cancellables)
         settings.$moments.sink { [weak self] in self?.overlay.moments = $0 }.store(in: &cancellables)
         settings.$source.sink { [weak self] source in
             // @Published fires before the value is stored, so act on the new value directly.

@@ -52,6 +52,8 @@ final class AppSettings: ObservableObject {
     @Published var city: String { didSet { d.set(city, forKey: "city") } }
     @Published var paused: Bool { didSet { d.set(paused, forKey: "paused") } }
     @Published var settleOnWindows: Bool { didSet { d.set(settleOnWindows, forKey: "settleOnWindows") } }
+    /// Snow also settles on desktop widgets and desktop files.
+    @Published var settleOnDesktop: Bool { didSet { d.set(settleOnDesktop, forKey: "settleOnDesktop") } }
     @Published var moments: MomentFrequency { didSet { d.set(moments.rawValue, forKey: "moments") } }
     @Published var wallpaperEnabled: Bool { didSet { d.set(wallpaperEnabled, forKey: "wallpaperEnabled") } }
     @Published var wallpaperFolder: URL { didSet { d.set(wallpaperFolder.path, forKey: "wallpaperFolder") } }
@@ -74,6 +76,7 @@ final class AppSettings: ObservableObject {
         city = d.string(forKey: "city") ?? ""
         paused = d.bool(forKey: "paused")
         settleOnWindows = d.object(forKey: "settleOnWindows") as? Bool ?? true
+        settleOnDesktop = d.object(forKey: "settleOnDesktop") as? Bool ?? true
         moments = MomentFrequency(rawValue: d.string(forKey: "moments") ?? "") ?? .sometimes
         wallpaperEnabled = d.object(forKey: "wallpaperEnabled") as? Bool ?? true
         wallpaperFolder = d.string(forKey: "wallpaperFolder").map { URL(fileURLWithPath: $0, isDirectory: true) }
